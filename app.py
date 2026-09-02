@@ -52,7 +52,7 @@ menu = st.sidebar.selectbox(
 )
 
 if menu == "Tippen & Rangliste":
-  # --- 1. LIVE-RANGLISTE OBEN AUF DER SEITE ---
+  # --- 1. LIVE-RANGLISTE OBEN AUF DER SEITE (MODERNISIERT) ---
   st.subheader("📊 Live-Rangliste")
   if not tips:
     st.info(
@@ -159,32 +159,50 @@ if menu == "Tippen & Rangliste":
 
     scores = sorted(scores, key=lambda x: x["Total"], reverse=True)
 
-    ranked_scores = []
+    # Schöneres UI für die Rangliste rendern
     current_rank = 1
     for i, entry in enumerate(scores):
       if i > 0 and entry["Total"] < scores[i - 1]["Total"]:
         current_rank = i + 1
 
+      # Rang-Darstellung (ohne zusätzliche Zahl bei Medaillen)
       if current_rank == 1:
-        rank_str = "🥇 1."
+        rank_display = "🥇"
       elif current_rank == 2:
-        rank_str = "🥈 2."
+        rank_display = "🥈"
       elif current_rank == 3:
-        rank_str = "🥉 3."
+        rank_display = "🥉"
       else:
-        rank_str = f"{current_rank}."
+        rank_display = f"#{current_rank}"
 
-      ranked_scores.append({
-          "Rang": rank_str,
-          "Name": entry["Name"],
-          "Punkte Total": entry["Total"],
-          "Punkte Gänge": entry["Gänge"],
-          "Bonus Gänge": entry["Bonus Gänge"],
-          "Punkte Fragen": entry["Fragen"],
-          "Bonus Fragen": entry["Bonus Fragen"],
-      })
+      # Container für jeden Rang erstellen
+      with st.container(border=True):
+        col1, col2, col3 = st.columns([1, 4, 2])
 
-    st.table(ranked_scores)
+        with col1:
+          st.markdown(
+              f"<h2 style='text-align: center; margin: 0;'>{rank_display}</h2>",
+              unsafe_allow_html=True,
+          )
+
+        with col2:
+          st.markdown(
+              f"<h4 style='margin: 0; padding-top: 4px;'>{entry['Name']}</h4>",
+              unsafe_allow_html=True,
+          )
+          st.caption(
+              f"Gänge: {entry['Gänge']} P. (+{entry['Bonus Gänge']} B.) | "
+              f"Fragen: {entry['Fragen']} P. (+{entry['Bonus Fragen']} B.)"
+          )
+
+        with col3:
+          st.markdown(
+              f"<div style='text-align: right;'><span"
+              f" style='font-size: 0.8rem; color: gray;'>Total</span><br><b"
+              f" style='font-size: 1.4rem; color: #ff4b4b;'>{entry['Total']}"
+              " Pkt.</b></div>",
+              unsafe_allow_html=True,
+          )
 
   st.divider()
 
@@ -431,7 +449,6 @@ elif menu == "Admin-Bereich":
       st.divider()
       st.write("#### A) Teilnehmer manuell hinzufügen oder löschen")
 
-      # Einzelnen Teilnehmer hinzufügen
       with st.form("add_single_participant"):
         new_part = st.text_input("Name des neuen Teilnehmers")
         if st.form_submit_button("Teilnehmer hinzufügen") and new_part:
@@ -444,7 +461,6 @@ elif menu == "Admin-Bereich":
           else:
             st.warning("Name ist leer oder existiert bereits.")
 
-      # Teilnehmer löschen
       if participants_list:
         with st.form("delete_participant_form"):
           del_part = st.selectbox(
