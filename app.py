@@ -78,110 +78,161 @@ if menu == "Tippspiel":
 
     if participant_name:
       st.write("")
-      st.write(f"Grüezi **{participant_name}**!")
-      st.write("")
-
       clean_name = participant_name.strip()
-      if clean_name and clean_name not in tips:
-        tips[clean_name] = {"pairings": {}, "questions": {}}
-        save_data(TIPS_FILE, tips)
 
-      user_data = tips.get(clean_name, {"pairings": {}, "questions": {}})
+      user_entry = tips.get(clean_name, None)
+      has_pin_stored = (
+          isinstance(user_entry, dict)
+          and "pin" in user_entry
+          and user_entry["pin"]
+      )
+      access_granted = False
 
-      sub_tab_p, sub_tab_q = st.tabs(["Gänge / Paarungen", "Zusatzfragen"])
-
-      with sub_tab_p:
-        st.write("")
-        if not pairings:
-          st.info("Noch keine Paarungen erfasst.")
-        else:
-          with st.form("tipping_form_pairings"):
-            new_user_pairings = user_data.get("pairings", {})
-            locked_dict = settings.get("gang_locked", {})
-
-            from itertools import groupby
-
-            sorted_pairings = sorted(pairings, key=lambda x: x["gang"])
-
-            for gang_nr, gang_pairings in groupby(
-                sorted_pairings, key=lambda x: x["gang"]
+      if not has_pin_stored:
+        st.info(
+            f"🔑 **{clean_name}**, du hast noch keine Geheimzahl (PIN) gesetzt."
+            " Bitte lege jetzt eine 2-stellige PIN fest:"
+        )
+        with st.form(f"set_pin_form_{clean_name}"):
+          new_pin_input = st.text_input(
+              "2-stellige Geheimzahl (z.B. 12):",
+              max_chars=4,
+              type="password",
+          )
+          pin_submit = st.form_submit_button("PIN festlegen & starten")
+          if pin_submit:
+            if (
+                new_pin_input
+                and new_pin_input.isdigit()
+                and len(new_pin_input) >= 2
             ):
-              gang_str = str(gang_nr)
-              is_locked = locked_dict.get(gang_str, False)
-
-              with st.container(border=True):
-                gang_header = f"### Gang {gang_nr}"
-                if is_locked:
-                  gang_header += " 🔒 (Gesperrt)"
-                st.markdown(gang_header)
-                st.write("")
-
-                for p in gang_pairings:
-                  p_id = p["id"]
-                  s1 = p["schwinget_1"]
-                  s2 = p["schwinget_2"]
-
-                  default_tip = new_user_pairings.get(p_id, s1)
-                  options = [s1, "Gestellt", s2]
-                  default_idx = (
-                      options.index(default_tip)
-                      if default_tip in options
-                      else 0
+              existing_data = (
+                  user_entry.get("data", {"pairings": {}, "questions": {}})
+                  if isinstance(user_entry, dict) and "pin" in user_entry
+                  else (
+                      user_entry
+                      if isinstance(user_entry, dict)
+                      else {"pairings": {}, "questions": {}}
                   )
-
-                  # Gekreuztes Schwert statt 'vs.' mit Abstand
-                  label = f"{s1}  ⚔️  {s2}"
-                  tip = st.selectbox(
-                      label,
-                      options,
-                      index=default_idx,
-                      key=f"tip_{p_id}",
-                      disabled=is_locked,
-                  )
-                  new_user_pairings[p_id] = tip
-                  st.write("")  # Abstand zwischen den Selectboxen
-
-            st.write("")
-            submit_p = st.form_submit_button("Paarung-Tipps speichern")
-            if submit_p:
-              user_data["pairings"] = new_user_pairings
-              tips[clean_name] = user_data
-              save_data(TIPS_FILE, tips)
-              st.success("Paarungs-Tipps gespeichert!")
-              st.rerun()
-
-      with sub_tab_q:
-        st.write("")
-        if not questions:
-          st.info("Keine Zusatzfragen vorhanden.")
-        else:
-          with st.form("tipping_form_questions"):
-            new_user_questions = user_data.get("questions", {})
-
-            for q in questions:
-              q_id = q["id"]
-              q_text = q["question"]
-              default_ans = new_user_questions.get(q_id, "")
-
-              ans = st.text_input(
-                  q_text, value=default_ans, key=f"q_input_{q_id}"
               )
-              st.write("")
+              tips[clean_name] = {"pin": new_pin_input, "data": existing_data}
+              save_data(TIPS_FILE, tips)
+              st.success("PIN erfolgreich gespeichert!")
+              st.rerun()
+            else:
+              st.error(
+                  "Bitte gib eine gültige, mindestens 2-stellige Zahl ein."
+              )
+      else:
+        entered_pin = st.text_input(
+            f"🔐 Gib deine 2-stellige Geheimzahl für **{clean_name}** ein:",
+            max_chars=4,
+            type="password",
+            key=f"login_pin_{clean_name}",
+        )
 
-            submit_q = st.form_submit_button("Zusatzfragen speichern")
-            if submit_q:
-              # Korrektur des Loops zum Speichern der Fragen
+        stored_pin = user_entry.get("pin")
+        if entered_pin == stored_pin:
+          access_granted = True
+        elif entered_pin:
+          st.error("❌ Falsche Geheimzahl!")
+
+      if access_granted:
+        st.success(f"🔓 Willkommen zurück, **{clean_name}**!")
+        st.write("")
+
+        user_data = user_entry.get("data", {"pairings": {}, "questions": {}})
+
+        sub_tab_p, sub_tab_q = st.tabs(["Gänge / Paarungen", "Zusatzfragen"])
+
+        with sub_tab_p:
+          st.write("")
+          if not pairings:
+            st.info("Noch keine Paarungen erfasst.")
+          else:
+            with st.form("tipping_form_pairings"):
+              new_user_pairings = user_data.get("pairings", {})
+              locked_dict = settings.get("gang_locked", {})
+
+              from itertools import groupby
+
+              sorted_pairings = sorted(pairings, key=lambda x: x["gang"])
+
+              for gang_nr, gang_pairings in groupby(
+                  sorted_pairings, key=lambda x: x["gang"]
+              ):
+                gang_str = str(gang_nr)
+                is_locked = locked_dict.get(gang_str, False)
+
+                with st.container(border=True):
+                  gang_header = f"### Gang {gang_nr}"
+                  if is_locked:
+                    gang_header += " 🔒 (Gesperrt)"
+                  st.markdown(gang_header)
+                  st.write("")
+
+                  for p in gang_pairings:
+                    p_id = p["id"]
+                    s1 = p["schwinget_1"]
+                    s2 = p["schwinget_2"]
+
+                    default_tip = new_user_pairings.get(p_id, s1)
+                    options = [s1, "Gestellt", s2]
+                    default_idx = (
+                        options.index(default_tip)
+                        if default_tip in options
+                        else 0
+                    )
+
+                    label = f"{s1}  ⚔️  {s2}"
+                    tip = st.selectbox(
+                        label,
+                        options,
+                        index=default_idx,
+                        key=f"tip_{p_id}",
+                        disabled=is_locked,
+                    )
+                    new_user_pairings[p_id] = tip
+                    st.write("")
+
+              st.write("")
+              submit_p = st.form_submit_button("Paarung-Tipps speichern")
+              if submit_p:
+                user_data["pairings"] = new_user_pairings
+                tips[clean_name]["data"] = user_data
+                save_data(TIPS_FILE, tips)
+                st.success("Paarungs-Tipps gespeichert!")
+                st.rerun()
+
+        with sub_tab_q:
+          st.write("")
+          if not questions:
+            st.info("Keine Zusatzfragen vorhanden.")
+          else:
+            with st.form("tipping_form_questions"):
+              new_user_questions = user_data.get("questions", {})
+
               for q in questions:
                 q_id = q["id"]
-                new_user_questions[q_id] = st.session_state.get(
-                    f"q_input_{q_id}", ""
-                )
+                q_text = q["question"]
+                default_ans = new_user_questions.get(q_id, "")
 
-              user_data["questions"] = new_user_questions
-              tips[clean_name] = user_data
-              save_data(TIPS_FILE, tips)
-              st.success("Zusatzfragen gespeichert!")
-              st.rerun()
+                st.text_input(q_text, value=default_ans, key=f"q_input_{q_id}")
+                st.write("")
+
+              submit_q = st.form_submit_button("Zusatzfragen speichern")
+              if submit_q:
+                for q in questions:
+                  q_id = q["id"]
+                  new_user_questions[q_id] = st.session_state.get(
+                      f"q_input_{q_id}", ""
+                  )
+
+                user_data["questions"] = new_user_questions
+                tips[clean_name]["data"] = user_data
+                save_data(TIPS_FILE, tips)
+                st.success("Zusatzfragen gespeichert!")
+                st.rerun()
 
     else:
       st.warning("Bitte wähle deinen Namen aus, um deine Tipps abzugeben.")
@@ -202,7 +253,12 @@ if menu == "Tippspiel":
       bonus_q_val = settings.get("bonus_question_round", 2)
 
       user_stats = {}
-      for name, data in tips.items():
+      for name, entry_val in tips.items():
+        if isinstance(entry_val, dict) and "data" in entry_val:
+          data = entry_val["data"]
+        else:
+          data = entry_val
+
         user_p_tips = data.get("pairings", {})
         user_q_tips = data.get("questions", {})
 
@@ -337,7 +393,7 @@ if menu == "Tippspiel":
                 " Pkt.</b></div>",
                 unsafe_allow_html=True,
             )
-          st.write("")  # Kleiner Abstand nach jeder Karte
+          st.write("")
 
 elif menu == "Admin-Bereich":
   st.subheader("⚙️ Admin-Verwaltung")
@@ -554,7 +610,12 @@ elif menu == "Admin-Bereich":
         total_pairings = len(pairings)
         total_questions = len(questions)
 
-        for name, data in tips.items():
+        for name, entry_val in tips.items():
+          if isinstance(entry_val, dict) and "data" in entry_val:
+            data = entry_val["data"]
+          else:
+            data = entry_val
+
           user_p = data.get("pairings", {})
           user_q = data.get("questions", {})
 
@@ -669,11 +730,14 @@ elif menu == "Admin-Bereich":
 
         dummy_tips = {
             "Hansueli": {
-                "pairings": {
-                    "1": "Aeschbacher Matthias, S ***",
-                    "2": "Gestellt",
+                "pin": "12",
+                "data": {
+                    "pairings": {
+                        "1": "Aeschbacher Matthias, S ***",
+                        "2": "Gestellt",
+                    },
+                    "questions": {"1": "Giger Samuel, S ***"},
                 },
-                "questions": {"1": "Giger Samuel, S ***"},
             }
         }
         save_data(TIPS_FILE, dummy_tips)
@@ -683,7 +747,16 @@ elif menu == "Admin-Bereich":
 
       st.divider()
       st.write("### ⚠️ Reset / Testdaten löschen")
-      if st.button("🔄 Alles zurücksetzen (Reset)"):
+
+      # Sicherheitsabfrage (Checkbox) eingebaut
+      confirm_reset = st.checkbox(
+          "⚠️ Ja, ich bin absolut sicher, dass ich alle Daten (Tipps,"
+          " Paarungen, Fragen, Teilnehmer) unwiderruflich löschen will."
+      )
+
+      if st.button(
+          "🔄 Alles zurücksetzen (Reset)", disabled=not confirm_reset
+      ):
         for f in [
             PAIRINGS_FILE,
             TIPS_FILE,
