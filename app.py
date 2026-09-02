@@ -67,36 +67,44 @@ if menu == "Tippen & Rangliste":
           new_user_pairings = user_data.get("pairings", {})
           locked_dict = settings.get("gang_locked", {})
 
-          for p in pairings:
-            p_id = p["id"]
-            gang_nr = str(p["gang"])
-            is_locked = locked_dict.get(gang_nr, False)
+          # Paarungen nach Gang gruppieren
+          from itertools import groupby
 
-            p_title = (
-                f"Gang {p['gang']}: {p['schwinget_1']} vs. {p['schwinget_2']}"
-            )
-            if is_locked:
-              p_title += " 🔒 (Gesperrt)"
+          sorted_pairings = sorted(pairings, key=lambda x: x["gang"])
 
-            default_tip = new_user_pairings.get(p_id, "Sieg Schwinger 1")
-            options = [
-                "Sieg Schwinger 1",
-                "Unentschieden (Gangluepf)",
-                "Sieg Schwinger 2",
-            ]
-            default_idx = (
-                options.index(default_tip) if default_tip in options else 0
-            )
+          for gang_nr, gang_pairings in groupby(
+              sorted_pairings, key=lambda x: x["gang"]
+          ):
+            gang_str = str(gang_nr)
+            is_locked = locked_dict.get(gang_str, False)
 
-            # Wenn Gang gesperrt, disabled anzeigen
-            tip = st.selectbox(
-                p_title,
-                options,
-                index=default_idx,
-                key=f"tip_{p_id}",
-                disabled=is_locked,
-            )
-            new_user_pairings[p_id] = tip
+            # Visueller Container/Rahmen pro Gang
+            with st.container(border=True):
+              gang_header = f"### Gang {gang_nr}"
+              if is_locked:
+                gang_header += " 🔒 (Gesperrt)"
+              st.markdown(gang_header)
+
+              for p in gang_pairings:
+                p_id = p["id"]
+                s1 = p["schwinget_1"]
+                s2 = p["schwinget_2"]
+
+                default_tip = new_user_pairings.get(p_id, s1)
+                options = [s1, "Gestellt", s2]
+                default_idx = (
+                    options.index(default_tip) if default_tip in options else 0
+                )
+
+                label = f"{s1} vs. {s2}"
+                tip = st.selectbox(
+                    label,
+                    options,
+                    index=default_idx,
+                    key=f"tip_{p_id}",
+                    disabled=is_locked,
+                )
+                new_user_pairings[p_id] = tip
 
           submit_p = st.form_submit_button("Paarung-Tipps speichern")
           if submit_p:
@@ -153,7 +161,6 @@ if menu == "Tippen & Rangliste":
         # Punkte für Zusatzfragen
         for q in questions:
           if q.get("result"):
-            # Einfacher Textvergleich (case-insensitive & stripped)
             user_ans = str(user_q.get(q["id"], "")).strip().lower()
             correct_ans = str(q.get("result", "")).strip().lower()
             if user_ans and user_ans == correct_ans:
@@ -204,7 +211,6 @@ elif menu == "Admin-Bereich":
 
       st.divider()
       st.write("### 2. Gänge manuell sperren / entsperren")
-      # Finde alle eindeutigen Gänge
       existing_gangs = sorted(list(set([p["gang"] for p in pairings])))
       if not existing_gangs:
         st.info("Erstelle zuerst Paarungen, um Gänge zu sperren.")
@@ -234,16 +240,11 @@ elif menu == "Admin-Bereich":
         with st.form("result_form"):
           for p in pairings:
             p_id = p["id"]
-            p_title = (
-                f"Gang {p['gang']}: {p['schwinget_1']} vs. {p['schwinget_2']}"
-            )
+            s1 = p["schwinget_1"]
+            s2 = p["schwinget_2"]
+            p_title = f"Gang {p['gang']}: {s1} vs. {s2}"
             current_res = p.get("result")
-            res_options = [
-                "Noch offen",
-                "Sieg Schwinger 1",
-                "Unentschieden (Gangluepf)",
-                "Sieg Schwinger 2",
-            ]
+            res_options = ["Noch offen", s1, "Gestellt", s2]
             default_idx = (
                 res_options.index(current_res)
                 if current_res in res_options
