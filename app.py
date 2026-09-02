@@ -2,9 +2,10 @@ import json
 import os
 import streamlit as st
 
-# Dateien für die persistente Speicherung auf dem Server
 PAIRINGS_FILE = "pairings.json"
 TIPS_FILE = "tips.json"
+QUESTIONS_FILE = "questions.json"
+SETTINGS_FILE = "settings.json"
 
 
 def load_data(file_path, default):
@@ -31,8 +32,17 @@ st.title("🏆 Schwingfest Tippspiel")
 # Daten laden
 pairings = load_data(PAIRINGS_FILE, [])
 tips = load_data(TIPS_FILE, {})
+questions = load_data(QUESTIONS_FILE, [])
+settings = load_data(
+    SETTINGS_FILE,
+    {
+        "admin_pw": "schwingen2026",
+        "points_pairing": 1,
+        "points_question": 2,
+        "gang_locked": {},
+    },
+)
 
-# Navigation über Seitenleiste
 menu = st.sidebar.selectbox(
     "Navigation", ["Tippen & Rangliste", "Admin-Bereich"]
 )
@@ -42,44 +52,82 @@ if menu == "Tippen & Rangliste":
   participant_name = st.text_input("Dein Name / Nickname:")
 
   if participant_name:
-    st.write(
-        f"Grüezi **{participant_name}**! Tippe hier die laufenden und"
-        " kommenden Paarungen."
+    st.write(f"Grüezi **{participant_name}**!")
+    user_data = tips.get(participant_name, {"pairings": {}, "questions": {}})
+
+    tab_pairings, tab_questions = st.tabs(
+        ["Gänge / Paarungen", "Zusatzfragen"]
     )
 
-    if not pairings:
-      st.info(
-          "Noch keine Paarungen erfasst. Der Admin schaltet sie in Kürze frei!"
-      )
-    else:
-      user_tips = tips.get(participant_name, {})
+    with tab_pairings:
+      if not pairings:
+        st.info("Noch keine Paarungen erfasst.")
+      else:
+        with st.form("tipping_form_pairings"):
+          new_user_pairings = user_data.get("pairings", {})
+          locked_dict = settings.get("gang_locked", {})
 
-      with st.form("tipping_form"):
-        new_user_tips = {}
-        for p in pairings:
-          p_id = p["id"]
-          p_title = (
-              f"Gang {p['gang']}: {p['schwinget_1']} vs. {p['schwinget_2']}"
-          )
-          default_tip = user_tips.get(p_id, "Sieg Schwinger 1")
+          for p in pairings:
+            p_id = p["id"]
+            gang_nr = str(p["gang"])
+            is_locked = locked_dict.get(gang_nr, False)
 
-          options = [
-              "Sieg Schwinger 1",
-              "Unentschieden (Gangluepf)",
-              "Sieg Schwinger 2",
-          ]
-          default_idx = (
-              options.index(default_tip) if default_tip in options else 0
-          )
+            p_title = (
+                f"Gang {p['gang']}: {p['schwinget_1']} vs. {p['schwinget_2']}"
+            )
+            if is_locked:
+              p_title += " 🔒 (Gesperrt)"
 
-          tip = st.selectbox(p_title, options, index=default_idx, key=f"tip_{p_id}")
-          new_user_tips[p_id] = tip
+            default_tip = new_user_pairings.get(p_id, "Sieg Schwinger 1")
+            options = [
+                "Sieg Schwinger 1",
+                "Unentschieden (Gangluepf)",
+                "Sieg Schwinger 2",
+            ]
+            default_idx = (
+                options.index(default_tip) if default_tip in options else 0
+            )
 
-        submit_tips = st.form_submit_button("Tipps speichern")
-        if submit_tips:
-          tips[participant_name] = new_user_tips
-          save_data(TIPS_FILE, tips)
-          st.success("Tipps erfolgreich gespeichert!")
+            # Wenn Gang gesperrt, disabled anzeigen
+            tip = st.selectbox(
+                p_title,
+                options,
+                index=default_idx,
+                key=f"tip_{p_id}",
+                disabled=is_locked,
+            )
+            new_user_pairings[p_id] = tip
+
+          submit_p = st.form_submit_button("Paarung-Tipps speichern")
+          if submit_p:
+            user_data["pairings"] = new_user_pairings
+            tips[participant_name] = user_data
+            save_data(TIPS_FILE, tips)
+            st.success("Paarungs-Tipps gespeichert!")
+
+    with tab_questions:
+      if not questions:
+        st.info("Keine Zusatzfragen vorhanden.")
+      else:
+        with st.form("tipping_form_questions"):
+          new_user_questions = user_data.get("questions", {})
+
+          for q in questions:
+            q_id = q["id"]
+            q_text = q["question"]
+            default_ans = new_user_questions.get(q_id, "")
+
+            ans = st.text_input(
+                q_text, value=default_ans, key=f"q_input_{q_id}"
+            )
+            new_user_questions[q_id] = ans
+
+          submit_q = st.form_submit_button("Zusatzfragen speichern")
+          if submit_q:
+            user_data["questions"] = new_user_questions
+            tips[participant_name] = user_data
+            save_data(TIPS_FILE, tips)
+            st.success("Zusatzfragen gespeichert!")
 
     # Live-Rangliste
     st.divider()
@@ -88,15 +136,31 @@ if menu == "Tippen & Rangliste":
       st.write("Noch keine Tipps abgegeben.")
     else:
       scores = []
-      for name, user_tips in tips.items():
+      pts_p = settings.get("points_pairing", 1)
+      pts_q = settings.get("points_question", 2)
+
+      for name, data in tips.items():
         points = 0
+        user_p = data.get("pairings", {})
+        user_q = data.get("questions", {})
+
+        # Punkte für Paarungen
         for p in pairings:
-          if p.get("result"):  # Wenn Resultat vom Admin eingetragen wurde
-            if user_tips.get(p["id"]) == p["result"]:
-              points += 1  # 1 Punkt pro richtigem Tipp
+          if p.get("result"):
+            if user_p.get(p["id"]) == p["result"]:
+              points += pts_p
+
+        # Punkte für Zusatzfragen
+        for q in questions:
+          if q.get("result"):
+            # Einfacher Textvergleich (case-insensitive & stripped)
+            user_ans = str(user_q.get(q["id"], "")).strip().lower()
+            correct_ans = str(q.get("result", "")).strip().lower()
+            if user_ans and user_ans == correct_ans:
+              points += pts_q
+
         scores.append({"Name": name, "Punkte": points})
 
-      # Sortieren nach Punkten absteigend
       scores = sorted(scores, key=lambda x: x["Punkte"], reverse=True)
       st.table(scores)
 
@@ -107,21 +171,25 @@ elif menu == "Admin-Bereich":
   st.subheader("⚙️ Admin-Verwaltung")
   admin_pw = st.text_input("Admin-Passwort:", type="password")
 
-  # Ändere das Passwort nach Wunsch
-  if admin_pw == "schwingen2026":
+  if admin_pw == settings.get("admin_pw", "schwingen2026"):
     st.success("Admin-Zugriff aktiv.")
 
-    tab1, tab2 = st.tabs(["Paarungen hinzufügen", "Resultate eintragen"])
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "Paarungen & Gänge sperren",
+        "Resultate Eintragen",
+        "Zusatzfragen",
+        "Einstellungen & Punkte",
+    ])
 
     with tab1:
-      st.write("Neue Paarung erfassen (laufend während des Tages):")
+      st.write("### 1. Neue Paarung erfassen")
       with st.form("add_pairing"):
-        gang_nr = st.number_input("Gang-Nummer", min_value=1, max_value=8, value=1)
-        s1 = st.text_input("1. Schwinger (Name)")
-        s2 = st.text_input("2. Schwinger (Name)")
-        add_btn = st.form_submit_button("Paarung hinzufügen")
-
-        if add_btn and s1 and s2:
+        gang_nr = st.number_input(
+            "Gang-Nummer", min_value=1, max_value=8, value=1
+        )
+        s1 = st.text_input("1. Schwinger")
+        s2 = st.text_input("2. Schwinger")
+        if st.form_submit_button("Paarung hinzufügen") and s1 and s2:
           new_id = str(len(pairings) + 1)
           pairings.append({
               "id": new_id,
@@ -131,13 +199,35 @@ elif menu == "Admin-Bereich":
               "result": None,
           })
           save_data(PAIRINGS_FILE, pairings)
-          st.success(
-              f"Paarung Gang {gang_nr}: {s1} vs {s2} erfolgreich hinzugefügt!"
-          )
+          st.success("Hinzugefügt!")
           st.rerun()
 
+      st.divider()
+      st.write("### 2. Gänge manuell sperren / entsperren")
+      # Finde alle eindeutigen Gänge
+      existing_gangs = sorted(list(set([p["gang"] for p in pairings])))
+      if not existing_gangs:
+        st.info("Erstelle zuerst Paarungen, um Gänge zu sperren.")
+      else:
+        locked_dict = settings.get("gang_locked", {})
+        with st.form("lock_gangs_form"):
+          new_locked_dict = {}
+          for g in existing_gangs:
+            current_state = locked_dict.get(str(g), False)
+            new_locked_dict[str(g)] = st.checkbox(
+                f"Gang {g} für Tippabgabe sperren 🔒",
+                value=current_state,
+                key=f"lock_g_{g}",
+            )
+
+          if st.form_submit_button("Sperr-Status speichern"):
+            settings["gang_locked"] = new_locked_dict
+            save_data(SETTINGS_FILE, settings)
+            st.success("Sperrungen aktualisiert!")
+            st.rerun()
+
     with tab2:
-      st.write("Resultate für abgeschlossene Gänge eintragen:")
+      st.write("### Resultate für Paarungen eintragen")
       if not pairings:
         st.info("Keine Paarungen vorhanden.")
       else:
@@ -148,7 +238,6 @@ elif menu == "Admin-Bereich":
                 f"Gang {p['gang']}: {p['schwinget_1']} vs. {p['schwinget_2']}"
             )
             current_res = p.get("result")
-
             res_options = [
                 "Noch offen",
                 "Sieg Schwinger 1",
@@ -164,17 +253,71 @@ elif menu == "Admin-Bereich":
             selected_res = st.selectbox(
                 p_title, res_options, index=default_idx, key=f"res_{p_id}"
             )
+            p["result"] = None if selected_res == "Noch offen" else selected_res
 
-            if selected_res != "Noch offen":
-              p["result"] = selected_res
-            else:
-              p["result"] = None
-
-          save_results_btn = st.form_submit_button("Resultate speichern")
-          if save_results_btn:
+          if st.form_submit_button("Resultate speichern"):
             save_data(PAIRINGS_FILE, pairings)
-            st.success("Resultate aktualisiert und Rangliste berechnet!")
+            st.success("Resultate aktualisiert!")
             st.rerun()
+
+    with tab3:
+      st.write("### Zusatzfragen verwalten")
+      with st.form("add_question"):
+        q_text = st.text_input("Zusatzfrage (z.B. Wer gewinnt das Schwingfest?)")
+        if st.form_submit_button("Frage hinzufügen") and q_text:
+          q_id = str(len(questions) + 1)
+          questions.append({"id": q_id, "question": q_text, "result": None})
+          save_data(QUESTIONS_FILE, questions)
+          st.success("Frage hinzugefügt!")
+          st.rerun()
+
+      st.divider()
+      st.write("### Richtige Antworten für Zusatzfragen eintragen")
+      if not questions:
+        st.info("Keine Zusatzfragen erfasst.")
+      else:
+        with st.form("q_result_form"):
+          for q in questions:
+            q_id = q["id"]
+            current_res = q.get("result", "")
+            q["result"] = st.text_input(
+                f"Antwort für: '{q['question']}'",
+                value=current_res if current_res else "",
+                key=f"q_res_{q_id}",
+            )
+
+          if st.form_submit_button("Antworten speichern"):
+            save_data(QUESTIONS_FILE, questions)
+            st.success("Zusatzfragen-Resultate gespeichert!")
+            st.rerun()
+
+    with tab4:
+      st.write("### Einstellungen & Punktvergabe")
+      with st.form("settings_form"):
+        p_p = st.number_input(
+            "Punkte pro richtigem Paarungs-Tipp",
+            min_value=1,
+            max_value=10,
+            value=settings.get("points_pairing", 1),
+        )
+        p_q = st.number_input(
+            "Punkte pro richtiger Zusatzfrage",
+            min_value=1,
+            max_value=20,
+            value=settings.get("points_question", 2),
+        )
+        new_pw = st.text_input(
+            "Admin-Passwort ändern", value=settings.get("admin_pw", "")
+        )
+
+        if st.form_submit_button("Einstellungen speichern"):
+          settings["points_pairing"] = int(p_p)
+          settings["points_question"] = int(p_q)
+          if new_pw:
+            settings["admin_pw"] = new_pw
+          save_data(SETTINGS_FILE, settings)
+          st.success("Einstellungen erfolgreich aktualisiert!")
+          st.rerun()
 
   elif admin_pw:
     st.error("Falsches Passwort.")
