@@ -78,7 +78,6 @@ if menu == "Tippen & Rangliste":
             gang_str = str(gang_nr)
             is_locked = locked_dict.get(gang_str, False)
 
-            # Visueller Container/Rahmen pro Gang
             with st.container(border=True):
               gang_header = f"### Gang {gang_nr}"
               if is_locked:
@@ -152,13 +151,11 @@ if menu == "Tippen & Rangliste":
         user_p = data.get("pairings", {})
         user_q = data.get("questions", {})
 
-        # Punkte für Paarungen
         for p in pairings:
           if p.get("result"):
             if user_p.get(p["id"]) == p["result"]:
               points += pts_p
 
-        # Punkte für Zusatzfragen
         for q in questions:
           if q.get("result"):
             user_ans = str(user_q.get(q["id"], "")).strip().lower()
@@ -293,7 +290,7 @@ elif menu == "Admin-Bereich":
             st.rerun()
 
     with tab4:
-      st.write("### Einstellungen & Punktvergabe")
+      st.write("### Einstellungen & Punkte")
       with st.form("settings_form"):
         p_p = st.number_input(
             "Punkte pro richtigem Paarungs-Tipp",
@@ -311,7 +308,8 @@ elif menu == "Admin-Bereich":
             "Admin-Passwort ändern", value=settings.get("admin_pw", "")
         )
 
-        if st.form_submit_button("Einstellungen speichern"):
+        submit_settings = st.form_submit_button("Einstellungen speichern")
+        if submit_settings:
           settings["points_pairing"] = int(p_p)
           settings["points_question"] = int(p_q)
           if new_pw:
@@ -319,6 +317,26 @@ elif menu == "Admin-Bereich":
           save_data(SETTINGS_FILE, settings)
           st.success("Einstellungen erfolgreich aktualisiert!")
           st.rerun()
+
+      st.divider()
+      st.write("### ⚠️ Reset / Testdaten löschen")
+      st.warning(
+          "Achtung: Dies löscht alle Paarungen, Tipps, Zusatzfragen und"
+          " Resultate unwiderruflich!"
+      )
+
+      if st.button("🔄 Alles zurücksetzen (Reset)"):
+        # Dateien löschen / leeren
+        for f in [PAIRINGS_FILE, TIPS_FILE, QUESTIONS_FILE]:
+          if os.path.exists(f):
+            os.remove(f)
+        # Gang-Sperren in Settings zurücksetzen
+        settings["gang_locked"] = {}
+        save_data(SETTINGS_FILE, settings)
+        st.success(
+            "Alles erfolgreich zurückgesetzt! Die App ist wieder leer."
+        )
+        st.rerun()
 
   elif admin_pw:
     st.error("Falsches Passwort.")
