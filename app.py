@@ -777,22 +777,78 @@ elif menu == "Admin-Bereich":
           st.rerun()
 
       st.divider()
-      st.write("### 🧪 Test-Daten generieren")
-      if st.button("🚀 Test-Dummies erstellen"):
+      st.write("### 🧪 Test-Daten generieren (inkl. aktueller 1. Gang)")
+      if st.button("🚀 Test-Dummies & 1. Gang erstellen"):
         dummy_pairings = [
             {
                 "id": "1",
                 "gang": 1,
-                "schwinget_1": "Aeschbacher Matthias, S ***",
-                "schwinget_2": "Vianin Pierre, S *",
-                "result": "Aeschbacher Matthias, S ***",
+                "schwinget_1": "Schwyzer Samuel ** (ISV LU)",
+                "schwinget_2": "Zaugg Lars ** (BKSV ET)",
+                "result": None,
             },
             {
                 "id": "2",
                 "gang": 1,
-                "schwinget_1": "Giger Samuel, S ***",
-                "schwinget_2": "Staudenmann Fabian, S ***",
-                "result": "Gestellt",
+                "schwinget_1": "Bieri Marcel *** (ISV ZG)",
+                "schwinget_2": "Kramer Lario *** (SWSV FR)",
+                "result": None,
+            },
+            {
+                "id": "3",
+                "gang": 1,
+                "schwinget_1": "Collaud Romain *** (SWSV FR)",
+                "schwinget_2": "Strebel Joel *** (NWSV AG)",
+                "result": None,
+            },
+            {
+                "id": "4",
+                "gang": 1,
+                "schwinget_1": "Gwerder Michael *** (ISV SZ)",
+                "schwinget_2": "Lüscher Sinisha *** (NWSV SO)",
+                "result": None,
+            },
+            {
+                "id": "5",
+                "gang": 1,
+                "schwinget_1": "Bissig Lukas *** (ISV UR)",
+                "schwinget_2": "Ott Damian *** (NOSV SG)",
+                "result": None,
+            },
+            {
+                "id": "6",
+                "gang": 1,
+                "schwinget_1": "Burger Matthieu *** (BKSV SL)",
+                "schwinget_2": "Lustenberger Marc *** (ISV LU)",
+                "result": None,
+            },
+            {
+                "id": "7",
+                "gang": 1,
+                "schwinget_1": "Aeschbacher Matthias *** (BKSV ET)",
+                "schwinget_2": "Giger Samuel *** (NOSV TG)",
+                "result": None,
+            },
+            {
+                "id": "8",
+                "gang": 1,
+                "schwinget_1": "Alpiger Nick *** (NWSV AG)",
+                "schwinget_2": "Walther Adrian *** (BKSV ML)",
+                "result": None,
+            },
+            {
+                "id": "9",
+                "gang": 1,
+                "schwinget_1": "Moser Michael *** (BKSV ET)",
+                "schwinget_2": "Schlegel Werner *** (NOSV SG)",
+                "result": None,
+            },
+            {
+                "id": "10",
+                "gang": 1,
+                "schwinget_1": "Orlik Armon *** (NOSV GR)",
+                "schwinget_2": "Staudenmann Fabian *** (BKSV ML)",
+                "result": None,
             },
         ]
         save_data(PAIRINGS_FILE, dummy_pairings)
@@ -801,7 +857,7 @@ elif menu == "Admin-Bereich":
             {
                 "id": "1",
                 "question": "Wer gewinnt den Schlussgang?",
-                "result": "Giger Samuel, S ***",
+                "result": "",
             }
         ]
         save_data(QUESTIONS_FILE, dummy_questions)
@@ -809,21 +865,7 @@ elif menu == "Admin-Bereich":
         dummy_participants = ["Hansueli", "Heiri", "Vreni"]
         save_data(PARTICIPANTS_FILE, dummy_participants)
 
-        dummy_tips = {
-            "Hansueli": {
-                "pin": "12",
-                "data": {
-                    "pairings": {
-                        "1": "Aeschbacher Matthias, S ***",
-                        "2": "Gestellt",
-                    },
-                    "questions": {"1": "Giger Samuel, S ***"},
-                },
-            }
-        }
-        save_data(TIPS_FILE, dummy_tips)
-
-        st.success("Test-Daten erfolgreich erstellt!")
+        st.success("Paarungen des 1. Ganges erfolgreich geladen!")
         st.rerun()
 
       st.divider()
