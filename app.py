@@ -33,11 +33,7 @@ st.set_page_config(
 st.title("🏆 Tippspiel Kilchberger Schwinget")
 
 # --- OPTIONAL: LOGOS EINBINDEN ---
-# Hier kannst du ein Logo einfügen (z.B. in der Sidebar oder direkt auf der Hauptseite).
-# Beispiel für die Sidebar:
 # st.sidebar.image("dein_logo.png", width=150)
-# Oder als Platzhalter im Code:
-# st.sidebar.write("---")
 
 
 # Daten laden
@@ -69,22 +65,37 @@ if menu == "Tippspiel":
     st.subheader("📲 Tipps erfassen")
     st.write("")
 
+    participant_name = ""
+
     if participants_list:
-      options_names = ["-- Bitte wählen --"] + sorted(participants_list)
-      selected_participant = st.selectbox(
-          "Wähle deinen Namen aus:", options_names
+      name_options = (
+          ["-- Bitte wählen --"]
+          + sorted(participants_list)
+          + ["+ Anderen / neuen Namen eingeben"]
       )
-      participant_name = (
-          ""
-          if selected_participant == "-- Bitte wählen --"
-          else selected_participant
-      )
+      selected_option = st.selectbox("Wähle deinen Namen aus:", name_options)
+
+      if selected_option == "+ Anderen / neuen Namen eingeben":
+        new_typed_name = st.text_input(
+            "Gib deinen Namen / Nickname ein (wird automatisch zur"
+            " Tippspiel-Liste hinzugefügt):"
+        )
+        if new_typed_name:
+          participant_name = new_typed_name.strip()
+          if participant_name and participant_name not in participants_list:
+            participants_list.append(participant_name)
+            save_data(PARTICIPANTS_FILE, sorted(participants_list))
+      elif selected_option != "-- Bitte wählen --":
+        participant_name = selected_option
     else:
-      st.info(
-          "💡 Tipp: Im Admin-Bereich kannst du eine Teilnehmer-Liste (oder das"
-          " PDF) hochladen, damit hier ein Auswahlmenü erscheint."
+      new_typed_name = st.text_input(
+          "Dein Name / Nickname (wird automatisch gespeichert):"
       )
-      participant_name = st.text_input("Dein Name / Nickname:")
+      if new_typed_name:
+        participant_name = new_typed_name.strip()
+        if participant_name and participant_name not in participants_list:
+          participants_list.append(participant_name)
+          save_data(PARTICIPANTS_FILE, sorted(participants_list))
 
     if participant_name:
       st.write("")
@@ -217,7 +228,7 @@ if menu == "Tippspiel":
         with sub_tab_q:
           st.write("")
           if not questions:
-            st.info("Keine Zusatzfragen vorhanden.")
+            st.info("Noch keine Zusatzfragen vorhanden.")
           else:
             with st.form("tipping_form_questions"):
               new_user_questions = user_data.get("questions", {})
@@ -245,7 +256,10 @@ if menu == "Tippspiel":
                 st.rerun()
 
     else:
-      st.warning("Bitte wähle deinen Namen aus, um deine Tipps abzugeben.")
+      st.warning(
+          "Bitte wähle deinen Namen aus oder tippe einen neuen ein, um deine"
+          " Tipps abzugeben."
+      )
 
   # --- TAB 2: LIVE-RANGLISTE (Smartphonetauglich & Kompakt) ---
   with tab_rang:
@@ -376,7 +390,6 @@ if menu == "Tippspiel":
         else:
           rank_display = f"#{current_rank}"
 
-        # Kompaktes Design für Mobile (schlankes Container-Layout)
         with st.container(border=True):
           col1, col2, col3 = st.columns([1.2, 3.8, 2])
 
@@ -420,19 +433,27 @@ elif menu == "Admin-Bereich":
         "Paarungen & Gänge sperren",
         "Resultate Eintragen",
         "Zusatzfragen",
-        "Teilnehmer-Import & Verwaltung",
-        "Teilnehmer & Übersicht",
+        "Tippspiel-Teilnehmer",
+        "Wer hat gespielt?",
         "Einstellungen & Punkte",
     ])
 
     with tab1:
       st.write("### 1. Neue Paarung erfassen")
+      st.info(
+          "💡 **Hinweis:** Hier trägst du die **Schwinger** (Athleten) ein, die"
+          " gegeneinander antreten."
+      )
       with st.form("add_pairing"):
         gang_nr = st.number_input(
             "Gang-Nummer", min_value=1, max_value=8, value=1
         )
-        s1 = st.text_input("1. Schwinger (z.B. Aeschbacher Matthias, S ***)")
-        s2 = st.text_input("2. Schwinger (z.B. Giger Samuel, S ***)")
+        s1 = st.text_input(
+            "1. Schwinger (Athlet, z.B. Aeschbacher Matthias, S ***)"
+        )
+        s2 = st.text_input(
+            "2. Schwinger (Athlet, z.B. Giger Samuel, S ***)"
+        )
         if st.form_submit_button("Paarung hinzufügen") and s1 and s2:
           new_id = str(len(pairings) + 1)
           pairings.append({
@@ -443,7 +464,7 @@ elif menu == "Admin-Bereich":
               "result": None,
           })
           save_data(PAIRINGS_FILE, pairings)
-          st.success("Hinzugefügt!")
+          st.success("Paarung hinzugefügt!")
           st.rerun()
 
       st.divider()
@@ -531,40 +552,87 @@ elif menu == "Admin-Bereich":
             st.rerun()
 
     with tab4:
-      st.write("### 📄 Teilnehmer-Liste verwalten (PDF & Manuell)")
+      st.write(
+          "### 👥 Tippspiel-Teilnehmer verwalten (Personen, die mit-tippen)"
+      )
+      st.info(
+          "💡 **Hinweis:** Hier verwaltest du ausschliesslich die Spieler,"
+          " welche am Tippspiel teilnehmen (Freunde, Familie, Gäste etc.),"
+          " **nicht** die Schwinger."
+      )
+
       st.markdown(
-          "Offizielle Startliste herunterladen: "
-          "[Startliste ESV (PDF)](https://kilchberger-schwinget.ch/files/folder.28/startliste-esv.pdf)"
+          "Optional (falls du die Schwinger-Startliste als Vorlage nutzen"
+          " möchtest): [Startliste ESV"
+          " (PDF)](https://kilchberger-schwinget.ch/files/folder.28/startliste-esv.pdf)"
       )
 
       st.divider()
-      st.write("#### A) Teilnehmer manuell hinzufügen oder löschen")
+      st.write("#### A) Tippspiel-Teilnehmer manuell hinzufügen")
 
       with st.form("add_single_participant"):
-        new_part = st.text_input("Name des neuen Teilnehmers")
+        new_part = st.text_input(
+            "Name des Tippspiel-Teilnehmers (z. B. Hansueli)"
+        )
         if st.form_submit_button("Teilnehmer hinzufügen") and new_part:
           clean_np = new_part.strip()
           if clean_np and clean_np not in participants_list:
             participants_list.append(clean_np)
             save_data(PARTICIPANTS_FILE, sorted(participants_list))
-            st.success(f"'{clean_np}' hinzugefügt!")
+            st.success(f"Tippspiel-Teilnehmer '{clean_np}' hinzugefügt!")
             st.rerun()
           else:
             st.warning("Name ist leer oder existiert bereits.")
 
       if participants_list:
-        with st.form("delete_participant_form"):
-          del_part = st.selectbox(
-              "Teilnehmer zum Löschen auswählen", sorted(participants_list)
+        st.divider()
+        st.write(
+            "#### B) Bestehenden Tippspiel-Teilnehmer bearbeiten oder löschen"
+        )
+
+        with st.form("edit_delete_participant_form"):
+          selected_to_edit = st.selectbox(
+              "Teilnehmer auswählen", sorted(participants_list)
           )
-          if st.form_submit_button("Ausgewählten Teilnehmer löschen"):
-            participants_list.remove(del_part)
+          edited_name = st.text_input(
+              "Namen korrigieren / umbenennen:", value=selected_to_edit
+          )
+
+          col_e1, col_e2 = st.columns(2)
+          with col_e1:
+            save_edit = st.form_submit_button("Änderung speichern")
+          with col_e2:
+            delete_clicked = st.form_submit_button("Teilnehmer löschen")
+
+          if save_edit:
+            clean_edited = edited_name.strip()
+            if clean_edited and clean_edited != selected_to_edit:
+              if clean_edited in participants_list:
+                st.error("Dieser Name existiert bereits in der Liste.")
+              else:
+                idx = participants_list.index(selected_to_edit)
+                participants_list[idx] = clean_edited
+                save_data(PARTICIPANTS_FILE, sorted(participants_list))
+                if selected_to_edit in tips:
+                  tips[clean_edited] = tips.pop(selected_to_edit)
+                  save_data(TIPS_FILE, tips)
+                st.success(
+                    f"Teilnehmer von '{selected_to_edit}' zu '{clean_edited}'"
+                    " geändert!"
+                )
+                st.rerun()
+
+          if delete_clicked:
+            participants_list.remove(selected_to_edit)
             save_data(PARTICIPANTS_FILE, participants_list)
-            st.success(f"'{del_part}' wurde gelöscht.")
+            st.success(f"Tippspiel-Teilnehmer '{selected_to_edit}' wurde gelöscht.")
             st.rerun()
 
       st.divider()
-      st.write("#### B) Per PDF-Upload einlesen")
+      st.write(
+          "#### C) Per PDF-Upload einlesen (z. B. falls Namensliste als PDF"
+          " vorliegt)"
+      )
       uploaded_pdf = st.file_uploader(
           "Teilnehmer-PDF hochladen", type=["pdf", "txt"]
       )
@@ -584,9 +652,7 @@ elif menu == "Admin-Bereich":
                   if clean_line and len(clean_line) > 2:
                     extracted_names.append(clean_line)
           except Exception as e:
-            st.error(
-                f"Fehler beim Lesen des PDFs: {e}. Ist 'pypdf' installiert?"
-            )
+            st.error(f"Fehler beim Lesen des PDFs: {e}.")
         else:
           stringio = uploaded_pdf.getvalue().decode("utf-8")
           for line in stringio.split("\n"):
@@ -596,7 +662,7 @@ elif menu == "Admin-Bereich":
 
         if extracted_names:
           st.write("Gefundene Einträge (Vorschau):", extracted_names[:10])
-          if st.button("Ausgelesene Namen zur Liste hinzufügen"):
+          if st.button("Ausgelesene Namen zur Tipper-Liste hinzufügen"):
             combined = list(set(participants_list + extracted_names))
             save_data(PARTICIPANTS_FILE, sorted(combined))
             st.success("Namen erfolgreich zur Teilnehmerliste hinzugefügt!")
@@ -605,11 +671,12 @@ elif menu == "Admin-Bereich":
       if participants_list:
         st.divider()
         st.write(
-            f"**Aktuell hinterlegte Teilnehmer ({len(participants_list)}):**"
+            f"**Aktuell hinterlegte Tippspiel-Teilnehmer"
+            f" ({len(participants_list)}):**"
         )
         st.write(", ".join(participants_list))
 
-        if st.button("Komplette Teilnehmer-Liste leeren"):
+        if st.button("Komplette Tippspiel-Teilnehmer-Liste leeren"):
           if os.path.exists(PARTICIPANTS_FILE):
             os.remove(PARTICIPANTS_FILE)
           st.success("Teilnehmer-Liste komplett gelöscht.")
