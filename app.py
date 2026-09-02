@@ -25,10 +25,20 @@ def save_data(file_path, data):
 
 
 st.set_page_config(
-    page_title="Schwingfest Tippspiel", page_icon="🇨🇭", layout="centered"
+    page_title="Tippspiel Kilchberger Schwinget",
+    page_icon="🇨🇭",
+    layout="centered",
 )
 
-st.title("🏆 Schwingfest Tippspiel")
+st.title("🏆 Tippspiel Kilchberger Schwinget")
+
+# --- OPTIONAL: LOGOS EINBINDEN ---
+# Hier kannst du ein Logo einfügen (z.B. in der Sidebar oder direkt auf der Hauptseite).
+# Beispiel für die Sidebar:
+# st.sidebar.image("dein_logo.png", width=150)
+# Oder als Platzhalter im Code:
+# st.sidebar.write("---")
+
 
 # Daten laden
 pairings = load_data(PAIRINGS_FILE, [])
@@ -47,7 +57,7 @@ settings = load_data(
     },
 )
 
-# Hauptnavigation (Sidebar nur noch für Admin-Bereich & Startseite)
+# Hauptnavigation
 menu = st.sidebar.selectbox("Navigation", ["Tippspiel", "Admin-Bereich"])
 
 if menu == "Tippspiel":
@@ -57,7 +67,7 @@ if menu == "Tippspiel":
   # --- TAB 1: TIPPS ABGEBEN ---
   with tab_tipp:
     st.subheader("📲 Tipps erfassen")
-    st.write("")  # Etwas Abstand
+    st.write("")
 
     if participants_list:
       options_names = ["-- Bitte wählen --"] + sorted(participants_list)
@@ -237,7 +247,7 @@ if menu == "Tippspiel":
     else:
       st.warning("Bitte wähle deinen Namen aus, um deine Tipps abzugeben.")
 
-  # --- TAB 2: LIVE-RANGLISTE ---
+  # --- TAB 2: LIVE-RANGLISTE (Smartphonetauglich & Kompakt) ---
   with tab_rang:
     st.subheader("📊 Live-Rangliste")
     st.write("")
@@ -366,34 +376,38 @@ if menu == "Tippspiel":
         else:
           rank_display = f"#{current_rank}"
 
+        # Kompaktes Design für Mobile (schlankes Container-Layout)
         with st.container(border=True):
-          col1, col2, col3 = st.columns([1, 4, 2])
+          col1, col2, col3 = st.columns([1.2, 3.8, 2])
 
           with col1:
             st.markdown(
-                f"<h2 style='text-align: center; margin: 0;'>{rank_display}</h2>",
+                f"<div style='font-size: 1.2rem; font-weight: bold; text-align:"
+                f" center; padding-top: 6px;'>{rank_display}</div>",
                 unsafe_allow_html=True,
             )
 
           with col2:
             st.markdown(
-                f"<h4 style='margin: 0; padding-top: 4px;'>{entry['Name']}</h4>",
+                f"<div style='font-size: 1rem; font-weight: bold; margin: 0;"
+                f" line-height: 1.2;'>{entry['Name']}</div>",
                 unsafe_allow_html=True,
             )
-            st.caption(
-                f"Gänge: {entry['Gänge']} P. (+{entry['Bonus Gänge']} B.) | "
-                f"Fragen: {entry['Fragen']} P. (+{entry['Bonus Fragen']} B.)"
+            st.markdown(
+                f"<div style='font-size: 0.75rem; color: gray; margin-top:"
+                f" 2px;'>G: {entry['Gänge']} (+{entry['Bonus Gänge']}B) | F:"
+                f" {entry['Fragen']} (+{entry['Bonus Fragen']}B)</div>",
+                unsafe_allow_html=True,
             )
 
           with col3:
             st.markdown(
                 f"<div style='text-align: right;'><span"
-                f" style='font-size: 0.8rem; color: gray;'>Total</span><br><b"
-                f" style='font-size: 1.4rem; color: #ff4b4b;'>{entry['Total']}"
+                f" style='font-size: 0.75rem; color: gray;'>Total</span><br><b"
+                f" style='font-size: 1.2rem; color: #ff4b4b;'>{entry['Total']}"
                 " Pkt.</b></div>",
                 unsafe_allow_html=True,
             )
-          st.write("")
 
 elif menu == "Admin-Bereich":
   st.subheader("⚙️ Admin-Verwaltung")
@@ -748,7 +762,6 @@ elif menu == "Admin-Bereich":
       st.divider()
       st.write("### ⚠️ Reset / Testdaten löschen")
 
-      # Sicherheitsabfrage (Checkbox) eingebaut
       confirm_reset = st.checkbox(
           "⚠️ Ja, ich bin absolut sicher, dass ich alle Daten (Tipps,"
           " Paarungen, Fragen, Teilnehmer) unwiderruflich löschen will."
