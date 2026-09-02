@@ -6,6 +6,7 @@ PAIRINGS_FILE = "pairings.json"
 TIPS_FILE = "tips.json"
 QUESTIONS_FILE = "questions.json"
 SETTINGS_FILE = "settings.json"
+PARTICIPANTS_FILE = "participants.json"
 
 
 def load_data(file_path, default):
@@ -33,12 +34,15 @@ st.title("🏆 Schwingfest Tippspiel")
 pairings = load_data(PAIRINGS_FILE, [])
 tips = load_data(TIPS_FILE, {})
 questions = load_data(QUESTIONS_FILE, [])
+participants_list = load_data(PARTICIPANTS_FILE, [])
 settings = load_data(
     SETTINGS_FILE,
     {
         "admin_pw": "schwingen2026",
         "points_pairing": 1,
         "points_question": 2,
+        "bonus_pairing_round": 2,
+        "bonus_question_round": 2,
         "gang_locked": {},
     },
 )
@@ -48,13 +52,161 @@ menu = st.sidebar.selectbox(
 )
 
 if menu == "Tippen & Rangliste":
+  # --- 1. LIVE-RANGLISTE OBEN AUF DER SEITE ---
+  st.subheader("📊 Live-Rangliste")
+  if not tips:
+    st.info(
+        "Bisher hat noch niemand getippt. Wähle deinen Namen aus und starte!"
+    )
+  else:
+    pts_p = settings.get("points_pairing", 1)
+    pts_q = settings.get("points_question", 2)
+    bonus_p_val = settings.get("bonus_pairing_round", 2)
+    bonus_q_val = settings.get("bonus_question_round", 2)
+
+    user_stats = {}
+    for name, data in tips.items():
+      user_p_tips = data.get("pairings", {})
+      user_q_tips = data.get("questions", {})
+
+      p_points_total = 0
+      q_points_total = 0
+      gang_points_map = {}
+      q_points_val = 0
+
+      from itertools import groupby
+
+      sorted_pairings = sorted(pairings, key=lambda x: x["gang"])
+      for gang_nr, gang_pairings in groupby(
+          sorted_pairings, key=lambda x: x["gang"]
+      ):
+        g_pts = 0
+        for p in gang_pairings:
+          if p.get("result"):
+            if user_p_tips.get(p["id"]) == p["result"]:
+              g_pts += pts_p
+        gang_points_map[gang_nr] = g_pts
+        p_points_total += g_pts
+
+      for q in questions:
+        if q.get("result"):
+          user_ans = str(user_q_tips.get(q["id"], "")).strip().lower()
+          correct_ans = str(q.get("result", "")).strip().lower()
+          if user_ans and user_ans == correct_ans:
+            q_points_val += pts_q
+      q_points_total = q_points_val
+
+      user_stats[name] = {
+          "gang_points_map": gang_points_map,
+          "q_points": q_points_total,
+          "p_points": p_points_total,
+          "bonus_p": 0,
+          "bonus_q": 0,
+      }
+
+    existing_gangs = set(p["gang"] for p in pairings)
+    for g in existing_gangs:
+      gang_has_results = any(
+          p.get("result") for p in pairings if p["gang"] == g
+      )
+      if gang_has_results:
+        max_g_pts = -1
+        leaders = []
+        for name, stats in user_stats.items():
+          pts = stats["gang_points_map"].get(g, 0)
+          if pts > max_g_pts:
+            max_g_pts = pts
+            leaders = [name]
+          elif pts == max_g_pts:
+            leaders.append(name)
+
+        if max_g_pts > 0:
+          for leader in leaders:
+            user_stats[leader]["bonus_p"] += bonus_p_val
+
+    questions_has_results = any(q.get("result") for q in questions)
+    if questions_has_results and questions:
+      max_q_pts = -1
+      q_leaders = []
+      for name, stats in user_stats.items():
+        pts = stats["q_points"]
+        if pts > max_q_pts:
+          max_q_pts = pts
+          q_leaders = [name]
+        elif pts == max_q_pts:
+          q_leaders.append(name)
+
+      if max_q_pts > 0:
+        for leader in q_leaders:
+          user_stats[leader]["bonus_q"] += bonus_q_val
+
+    scores = []
+    for name, stats in user_stats.items():
+      total = (
+          stats["p_points"]
+          + stats["q_points"]
+          + stats["bonus_p"]
+          + stats["bonus_q"]
+      )
+      scores.append({
+          "Name": name,
+          "Total": total,
+          "Gänge": stats["p_points"],
+          "Bonus Gänge": stats["bonus_p"],
+          "Fragen": stats["q_points"],
+          "Bonus Fragen": stats["bonus_q"],
+      })
+
+    scores = sorted(scores, key=lambda x: x["Total"], reverse=True)
+
+    ranked_scores = []
+    current_rank = 1
+    for i, entry in enumerate(scores):
+      if i > 0 and entry["Total"] < scores[i - 1]["Total"]:
+        current_rank = i + 1
+
+      if current_rank == 1:
+        rank_str = "🥇 1."
+      elif current_rank == 2:
+        rank_str = "🥈 2."
+      elif current_rank == 3:
+        rank_str = "🥉 3."
+      else:
+        rank_str = f"{current_rank}."
+
+      ranked_scores.append({
+          "Rang": rank_str,
+          "Name": entry["Name"],
+          "Punkte Total": entry["Total"],
+          "Punkte Gänge": entry["Gänge"],
+          "Bonus Gänge": entry["Bonus Gänge"],
+          "Punkte Fragen": entry["Fragen"],
+          "Bonus Fragen": entry["Bonus Fragen"],
+      })
+
+    st.table(ranked_scores)
+
+  st.divider()
+
+  # --- 2. TIPPS ABGEBEN UNTEN ---
   st.subheader("📲 Tipps abgeben")
-  participant_name = st.text_input("Dein Name / Nickname:")
+
+  if participants_list:
+    options_names = ["-- Bitte wählen --"] + sorted(participants_list)
+    selected_participant = st.selectbox("Wähle deinen Namen aus:", options_names)
+    participant_name = (
+        "" if selected_participant == "-- Bitte wählen --" else selected_participant
+    )
+  else:
+    st.info(
+        "💡 Tipp: Im Admin-Bereich kannst du eine Teilnehmer-Liste (oder das"
+        " PDF) hochladen, damit hier ein Auswahlmenü erscheint."
+    )
+    participant_name = st.text_input("Dein Name / Nickname:")
 
   if participant_name:
     st.write(f"Grüezi **{participant_name}**!")
 
-    # Spieler direkt in die Tipps-Datenbank eintragen (damit er sofort in der Admin-Liste auftaucht)
     clean_name = participant_name.strip()
     if clean_name and clean_name not in tips:
       tips[clean_name] = {"pairings": {}, "questions": {}}
@@ -117,6 +269,7 @@ if menu == "Tippen & Rangliste":
             tips[clean_name] = user_data
             save_data(TIPS_FILE, tips)
             st.success("Paarungs-Tipps gespeichert!")
+            st.rerun()
 
     with tab_questions:
       if not questions:
@@ -141,41 +294,10 @@ if menu == "Tippen & Rangliste":
             tips[clean_name] = user_data
             save_data(TIPS_FILE, tips)
             st.success("Zusatzfragen gespeichert!")
-
-    # Live-Rangliste
-    st.divider()
-    st.subheader("📊 Live-Rangliste")
-    if not tips:
-      st.write("Noch keine Tipps abgegeben.")
-    else:
-      scores = []
-      pts_p = settings.get("points_pairing", 1)
-      pts_q = settings.get("points_question", 2)
-
-      for name, data in tips.items():
-        points = 0
-        user_p = data.get("pairings", {})
-        user_q = data.get("questions", {})
-
-        for p in pairings:
-          if p.get("result"):
-            if user_p.get(p["id"]) == p["result"]:
-              points += pts_p
-
-        for q in questions:
-          if q.get("result"):
-            user_ans = str(user_q.get(q["id"], "")).strip().lower()
-            correct_ans = str(q.get("result", "")).strip().lower()
-            if user_ans and user_ans == correct_ans:
-              points += pts_q
-
-        scores.append({"Name": name, "Punkte": points})
-
-      scores = sorted(scores, key=lambda x: x["Punkte"], reverse=True)
-      st.table(scores)
+            st.rerun()
 
   else:
-    st.warning("Bitte gib deinen Namen ein, um deine Tipps abzugeben.")
+    st.warning("Bitte wähle deinen Namen aus, um deine Tipps abzugeben.")
 
 elif menu == "Admin-Bereich":
   st.subheader("⚙️ Admin-Verwaltung")
@@ -184,10 +306,11 @@ elif menu == "Admin-Bereich":
   if admin_pw == settings.get("admin_pw", "schwingen2026"):
     st.success("Admin-Zugriff aktiv.")
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "Paarungen & Gänge sperren",
         "Resultate Eintragen",
         "Zusatzfragen",
+        "Teilnehmer-Import & Verwaltung",
         "Teilnehmer & Übersicht",
         "Einstellungen & Punkte",
     ])
@@ -198,8 +321,8 @@ elif menu == "Admin-Bereich":
         gang_nr = st.number_input(
             "Gang-Nummer", min_value=1, max_value=8, value=1
         )
-        s1 = st.text_input("1. Schwinger")
-        s2 = st.text_input("2. Schwinger")
+        s1 = st.text_input("1. Schwinger (z.B. Aeschbacher Matthias, S ***)")
+        s2 = st.text_input("2. Schwinger (z.B. Giger Samuel, S ***)")
         if st.form_submit_button("Paarung hinzufügen") and s1 and s2:
           new_id = str(len(pairings) + 1)
           pairings.append({
@@ -248,7 +371,8 @@ elif menu == "Admin-Bereich":
             s2 = p["schwinget_2"]
             p_title = f"Gang {p['gang']}: {s1} vs. {s2}"
             current_res = p.get("result")
-            res_options = ["Noch offen", s1, "Gestellt", s2]
+
+            res_options = ["-", s1, "Gestellt", s2]
             default_idx = (
                 res_options.index(current_res)
                 if current_res in res_options
@@ -258,7 +382,7 @@ elif menu == "Admin-Bereich":
             selected_res = st.selectbox(
                 p_title, res_options, index=default_idx, key=f"res_{p_id}"
             )
-            p["result"] = None if selected_res == "Noch offen" else selected_res
+            p["result"] = None if selected_res == "-" else selected_res
 
           if st.form_submit_button("Resultate speichern"):
             save_data(PAIRINGS_FILE, pairings)
@@ -297,6 +421,96 @@ elif menu == "Admin-Bereich":
             st.rerun()
 
     with tab4:
+      st.write("### 📄 Teilnehmer-Liste verwalten (PDF & Manuell)")
+      st.markdown(
+          "Offizielle Startliste herunterladen: "
+          "[Startliste ESV (PDF)](https://kilchberger-schwinget.ch/files/folder.28/startliste-esv.pdf)"
+          ""
+      )
+
+      st.divider()
+      st.write("#### A) Teilnehmer manuell hinzufügen oder löschen")
+
+      # Einzelnen Teilnehmer hinzufügen
+      with st.form("add_single_participant"):
+        new_part = st.text_input("Name des neuen Teilnehmers")
+        if st.form_submit_button("Teilnehmer hinzufügen") and new_part:
+          clean_np = new_part.strip()
+          if clean_np and clean_np not in participants_list:
+            participants_list.append(clean_np)
+            save_data(PARTICIPANTS_FILE, sorted(participants_list))
+            st.success(f"'{clean_np}' hinzugefügt!")
+            st.rerun()
+          else:
+            st.warning("Name ist leer oder existiert bereits.")
+
+      # Teilnehmer löschen
+      if participants_list:
+        with st.form("delete_participant_form"):
+          del_part = st.selectbox(
+              "Teilnehmer zum Löschen auswählen", sorted(participants_list)
+          )
+          if st.form_submit_button("Ausgewählten Teilnehmer löschen"):
+            participants_list.remove(del_part)
+            save_data(PARTICIPANTS_FILE, participants_list)
+            st.success(f"'{del_part}' wurde gelöscht.")
+            st.rerun()
+
+      st.divider()
+      st.write("#### B) Per PDF-Upload einlesen")
+      uploaded_pdf = st.file_uploader(
+          "Teilnehmer-PDF hochladen", type=["pdf", "txt"]
+      )
+
+      if uploaded_pdf is not None:
+        extracted_names = []
+        if uploaded_pdf.name.endswith(".pdf"):
+          try:
+            import pypdf
+
+            reader = pypdf.PdfReader(uploaded_pdf)
+            for page in reader.pages:
+              text = page.extract_text()
+              if text:
+                for line in text.split("\n"):
+                  clean_line = line.strip()
+                  if clean_line and len(clean_line) > 2:
+                    extracted_names.append(clean_line)
+          except Exception as e:
+            st.error(
+                f"Fehler beim Lesen des PDFs: {e}. Ist 'pypdf' installiert?"
+            )
+        else:
+          stringio = uploaded_pdf.getvalue().decode("utf-8")
+          for line in stringio.split("\n"):
+            clean_line = line.strip()
+            if clean_line:
+              extracted_names.append(clean_line)
+
+        if extracted_names:
+          st.write(
+              f"Gefundene Einträge (Vorschau):", extracted_names[:10]
+          )
+          if st.button("Ausgelesene Namen zur Liste hinzufügen"):
+            combined = list(set(participants_list + extracted_names))
+            save_data(PARTICIPANTS_FILE, sorted(combined))
+            st.success("Namen erfolgreich zur Teilnehmerliste hinzugefügt!")
+            st.rerun()
+
+      if participants_list:
+        st.divider()
+        st.write(
+            f"**Aktuell hinterlegte Teilnehmer ({len(participants_list)}):**"
+        )
+        st.write(", ".join(participants_list))
+
+        if st.button("Komplette Teilnehmer-Liste leeren"):
+          if os.path.exists(PARTICIPANTS_FILE):
+            os.remove(PARTICIPANTS_FILE)
+          st.success("Teilnehmer-Liste komplett gelöscht.")
+          st.rerun()
+
+    with tab5:
       st.write("### 👥 Wer hat gespielt & Vollständigkeit")
       if not tips:
         st.info("Bisher haben sich noch keine Teilnehmer registriert.")
@@ -342,7 +556,7 @@ elif menu == "Admin-Bereich":
 
         st.table(participant_overview)
 
-    with tab5:
+    with tab6:
       st.write("### Einstellungen & Punkte")
       with st.form("settings_form"):
         p_p = st.number_input(
@@ -357,6 +571,18 @@ elif menu == "Admin-Bereich":
             max_value=20,
             value=settings.get("points_question", 2),
         )
+        b_p = st.number_input(
+            "Bonuspunkte für den Rundensieger (pro Gang)",
+            min_value=0,
+            max_value=10,
+            value=settings.get("bonus_pairing_round", 2),
+        )
+        b_q = st.number_input(
+            "Bonuspunkte für den Sieger der Zusatzfragen",
+            min_value=0,
+            max_value=10,
+            value=settings.get("bonus_question_round", 2),
+        )
         new_pw = st.text_input(
             "Admin-Passwort ändern", value=settings.get("admin_pw", "")
         )
@@ -365,6 +591,8 @@ elif menu == "Admin-Bereich":
         if submit_settings:
           settings["points_pairing"] = int(p_p)
           settings["points_question"] = int(p_q)
+          settings["bonus_pairing_round"] = int(b_p)
+          settings["bonus_question_round"] = int(b_q)
           if new_pw:
             settings["admin_pw"] = new_pw
           save_data(SETTINGS_FILE, settings)
@@ -372,21 +600,66 @@ elif menu == "Admin-Bereich":
           st.rerun()
 
       st.divider()
-      st.write("### ⚠️ Reset / Testdaten löschen")
-      st.warning(
-          "Achtung: Dies löscht alle Paarungen, Tipps, Zusatzfragen und"
-          " Resultate unwiderruflich!"
-      )
+      st.write("### 🧪 Test-Daten generieren")
+      if st.button("🚀 Test-Dummies erstellen"):
+        dummy_pairings = [
+            {
+                "id": "1",
+                "gang": 1,
+                "schwinget_1": "Aeschbacher Matthias, S ***",
+                "schwinget_2": "Vianin Pierre, S *",
+                "result": "Aeschbacher Matthias, S ***",
+            },
+            {
+                "id": "2",
+                "gang": 1,
+                "schwinget_1": "Giger Samuel, S ***",
+                "schwinget_2": "Staudenmann Fabian, S ***",
+                "result": "Gestellt",
+            },
+        ]
+        save_data(PAIRINGS_FILE, dummy_pairings)
 
+        dummy_questions = [
+            {
+                "id": "1",
+                "question": "Wer gewinnt den Schlussgang?",
+                "result": "Giger Samuel, S ***",
+            }
+        ]
+        save_data(QUESTIONS_FILE, dummy_questions)
+
+        dummy_participants = ["Hansueli", "Heiri", "Vreni"]
+        save_data(PARTICIPANTS_FILE, dummy_participants)
+
+        dummy_tips = {
+            "Hansueli": {
+                "pairings": {
+                    "1": "Aeschbacher Matthias, S ***",
+                    "2": "Gestellt",
+                },
+                "questions": {"1": "Giger Samuel, S ***"},
+            }
+        }
+        save_data(TIPS_FILE, dummy_tips)
+
+        st.success("Test-Daten erfolgreich erstellt!")
+        st.rerun()
+
+      st.divider()
+      st.write("### ⚠️ Reset / Testdaten löschen")
       if st.button("🔄 Alles zurücksetzen (Reset)"):
-        for f in [PAIRINGS_FILE, TIPS_FILE, QUESTIONS_FILE]:
+        for f in [
+            PAIRINGS_FILE,
+            TIPS_FILE,
+            QUESTIONS_FILE,
+            PARTICIPANTS_FILE,
+        ]:
           if os.path.exists(f):
             os.remove(f)
         settings["gang_locked"] = {}
         save_data(SETTINGS_FILE, settings)
-        st.success(
-            "Alles erfolgreich zurückgesetzt! Die App ist wieder leer."
-        )
+        st.success("Alles zurückgesetzt!")
         st.rerun()
 
   elif admin_pw:
