@@ -67,7 +67,6 @@ if menu == "Tippen & Rangliste":
           new_user_pairings = user_data.get("pairings", {})
           locked_dict = settings.get("gang_locked", {})
 
-          # Paarungen nach Gang gruppieren
           from itertools import groupby
 
           sorted_pairings = sorted(pairings, key=lambda x: x["gang"])
@@ -178,10 +177,11 @@ elif menu == "Admin-Bereich":
   if admin_pw == settings.get("admin_pw", "schwingen2026"):
     st.success("Admin-Zugriff aktiv.")
 
-    tab1, tab2, tab3, tab4 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "Paarungen & Gänge sperren",
         "Resultate Eintragen",
         "Zusatzfragen",
+        "Teilnehmer & Übersicht",
         "Einstellungen & Punkte",
     ])
 
@@ -272,7 +272,7 @@ elif menu == "Admin-Bereich":
       st.divider()
       st.write("### Richtige Antworten für Zusatzfragen eintragen")
       if not questions:
-        st.info("Keine Zusatzfragen erfasst.")
+        st.info("Noch keine Zusatzfragen erfasst.")
       else:
         with st.form("q_result_form"):
           for q in questions:
@@ -290,6 +290,54 @@ elif menu == "Admin-Bereich":
             st.rerun()
 
     with tab4:
+      st.write("### 👥 Wer hat gespielt & Vollständigkeit")
+      if not tips:
+        st.info("Bisher haben sich noch keine Teilnehmer registriert.")
+      else:
+        participant_overview = []
+        total_pairings = len(pairings)
+        total_questions = len(questions)
+
+        for name, data in tips.items():
+          user_p = data.get("pairings", {})
+          user_q = data.get("questions", {})
+
+          # Zähle wie viele Paarungen getippt wurden
+          filled_pairings = sum(
+              1 for p in pairings if user_p.get(p["id"]) is not None
+          )
+          # Zähle wie viele Zusatzfragen beantwortet wurden (nicht leer)
+          filled_questions = sum(
+              1
+              for q in questions
+              if str(user_q.get(q["id"], "")).strip() != ""
+          )
+
+          p_status = (
+              f"✅ Alle ({filled_pairings}/{total_pairings})"
+              if filled_pairings == total_pairings
+              else f"⚠️ Unvollständig ({filled_pairings}/{total_pairings})"
+          )
+          q_status = (
+              f"✅ Alle ({filled_questions}/{total_questions})"
+              if filled_questions == total_questions
+              else f"⚠️ Unvollständig ({filled_questions}/{total_questions})"
+          )
+
+          if total_pairings == 0:
+            p_status = "Keine Paarungen da"
+          if total_questions == 0:
+            q_status = "Keine Fragen da"
+
+          participant_overview.append({
+              "Name": name,
+              "Paarungs-Tipps": p_status,
+              "Zusatzfragen": q_status,
+          })
+
+        st.table(participant_overview)
+
+    with tab5:
       st.write("### Einstellungen & Punkte")
       with st.form("settings_form"):
         p_p = st.number_input(
@@ -326,11 +374,9 @@ elif menu == "Admin-Bereich":
       )
 
       if st.button("🔄 Alles zurücksetzen (Reset)"):
-        # Dateien löschen / leeren
         for f in [PAIRINGS_FILE, TIPS_FILE, QUESTIONS_FILE]:
           if os.path.exists(f):
             os.remove(f)
-        # Gang-Sperren in Settings zurücksetzen
         settings["gang_locked"] = {}
         save_data(SETTINGS_FILE, settings)
         st.success(
