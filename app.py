@@ -53,7 +53,14 @@ if menu == "Tippen & Rangliste":
 
   if participant_name:
     st.write(f"Grüezi **{participant_name}**!")
-    user_data = tips.get(participant_name, {"pairings": {}, "questions": {}})
+
+    # Spieler direkt in die Tipps-Datenbank eintragen (damit er sofort in der Admin-Liste auftaucht)
+    clean_name = participant_name.strip()
+    if clean_name and clean_name not in tips:
+      tips[clean_name] = {"pairings": {}, "questions": {}}
+      save_data(TIPS_FILE, tips)
+
+    user_data = tips.get(clean_name, {"pairings": {}, "questions": {}})
 
     tab_pairings, tab_questions = st.tabs(
         ["Gänge / Paarungen", "Zusatzfragen"]
@@ -107,7 +114,7 @@ if menu == "Tippen & Rangliste":
           submit_p = st.form_submit_button("Paarung-Tipps speichern")
           if submit_p:
             user_data["pairings"] = new_user_pairings
-            tips[participant_name] = user_data
+            tips[clean_name] = user_data
             save_data(TIPS_FILE, tips)
             st.success("Paarungs-Tipps gespeichert!")
 
@@ -131,7 +138,7 @@ if menu == "Tippen & Rangliste":
           submit_q = st.form_submit_button("Zusatzfragen speichern")
           if submit_q:
             user_data["questions"] = new_user_questions
-            tips[participant_name] = user_data
+            tips[clean_name] = user_data
             save_data(TIPS_FILE, tips)
             st.success("Zusatzfragen gespeichert!")
 
@@ -302,11 +309,9 @@ elif menu == "Admin-Bereich":
           user_p = data.get("pairings", {})
           user_q = data.get("questions", {})
 
-          # Zähle wie viele Paarungen getippt wurden
           filled_pairings = sum(
               1 for p in pairings if user_p.get(p["id"]) is not None
           )
-          # Zähle wie viele Zusatzfragen beantwortet wurden (nicht leer)
           filled_questions = sum(
               1
               for q in questions
@@ -315,13 +320,13 @@ elif menu == "Admin-Bereich":
 
           p_status = (
               f"✅ Alle ({filled_pairings}/{total_pairings})"
-              if filled_pairings == total_pairings
-              else f"⚠️ Unvollständig ({filled_pairings}/{total_pairings})"
+              if total_pairings > 0 and filled_pairings == total_pairings
+              else f"⚠️ Noch offen ({filled_pairings}/{total_pairings})"
           )
           q_status = (
               f"✅ Alle ({filled_questions}/{total_questions})"
-              if filled_questions == total_questions
-              else f"⚠️ Unvollständig ({filled_questions}/{total_questions})"
+              if total_questions > 0 and filled_questions == total_questions
+              else f"⚠️ Noch offen ({filled_questions}/{total_questions})"
           )
 
           if total_pairings == 0:
