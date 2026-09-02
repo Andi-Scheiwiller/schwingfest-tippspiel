@@ -8,6 +8,80 @@ QUESTIONS_FILE = "questions.json"
 SETTINGS_FILE = "settings.json"
 PARTICIPANTS_FILE = "participants.json"
 
+# --- FEST DEFINIERTE STANDARD-PAARUNGEN (1. GANG MIT STERNEN) ---
+DEFAULT_PAIRINGS = [
+    {
+        "id": "1",
+        "gang": 1,
+        "schwinget_1": "Schwyzer Samuel **",
+        "schwinget_2": "Zaugg Lars **",
+        "result": None,
+    },
+    {
+        "id": "2",
+        "gang": 1,
+        "schwinget_1": "Bieri Marcel ***",
+        "schwinget_2": "Kramer Lario ***",
+        "result": None,
+    },
+    {
+        "id": "3",
+        "gang": 1,
+        "schwinget_1": "Collaud Romain ***",
+        "schwinget_2": "Strebel Joel ***",
+        "result": None,
+    },
+    {
+        "id": "4",
+        "gang": 1,
+        "schwinget_1": "Gwerder Michael ***",
+        "schwinget_2": "Lüscher Sinisha ***",
+        "result": None,
+    },
+    {
+        "id": "5",
+        "gang": 1,
+        "schwinget_1": "Bissig Lukas ***",
+        "schwinget_2": "Ott Damian ***",
+        "result": None,
+    },
+    {
+        "id": "6",
+        "gang": 1,
+        "schwinget_1": "Burger Matthieu ***",
+        "schwinget_2": "Lustenberger Marc ***",
+        "result": None,
+    },
+    {
+        "id": "7",
+        "gang": 1,
+        "schwinget_1": "Aeschbacher Matthias ***",
+        "schwinget_2": "Giger Samuel ***",
+        "result": None,
+    },
+    {
+        "id": "8",
+        "gang": 1,
+        "schwinget_1": "Alpiger Nick ***",
+        "schwinget_2": "Walther Adrian ***",
+        "result": None,
+    },
+    {
+        "id": "9",
+        "gang": 1,
+        "schwinget_1": "Moser Michael ***",
+        "schwinget_2": "Schlegel Werner ***",
+        "result": None,
+    },
+    {
+        "id": "10",
+        "gang": 1,
+        "schwinget_1": "Orlik Armon ***",
+        "schwinget_2": "Staudenmann Fabian ***",
+        "result": None,
+    },
+]
+
 
 def load_data(file_path, default):
   if os.path.exists(file_path):
@@ -32,12 +106,12 @@ st.set_page_config(
 
 st.title("🏆 Tippspiel Kilchberger Schwinget")
 
-# --- OPTIONAL: LOGOS EINBINDEN ---
-# st.sidebar.image("dein_logo.png", width=150)
+# Daten laden (falls pairings.json leer/nicht vorhanden, mit Standard-Paarungen belegen)
+pairings = load_data(PAIRINGS_FILE, DEFAULT_PAIRINGS)
+if not pairings:
+  pairings = DEFAULT_PAIRINGS
+  save_data(PAIRINGS_FILE, pairings)
 
-
-# Daten laden
-pairings = load_data(PAIRINGS_FILE, [])
 tips = load_data(TIPS_FILE, {})
 questions = load_data(QUESTIONS_FILE, [])
 participants_list = load_data(PARTICIPANTS_FILE, [])
@@ -57,7 +131,6 @@ settings = load_data(
 menu = st.sidebar.selectbox("Navigation", ["Tippspiel", "Admin-Bereich"])
 
 if menu == "Tippspiel":
-  # --- OBERE UNTERTEILUNG: TIPPS ABGEBEN ODER RANGLISTE ANZEIGEN ---
   tab_tipp, tab_rang = st.tabs(["📝 Tipps abgeben", "📊 Live-Rangliste"])
 
   # --- TAB 1: TIPPS ABGEBEN ---
@@ -261,7 +334,7 @@ if menu == "Tippspiel":
           " Tipps abzugeben."
       )
 
-  # --- TAB 2: LIVE-RANGLISTE (Smartphonetauglich & Kompakt) ---
+  # --- TAB 2: LIVE-RANGLISTE ---
   with tab_rang:
     st.subheader("📊 Live-Rangliste")
     st.write("")
@@ -440,27 +513,21 @@ elif menu == "Admin-Bereich":
 
     with tab1:
       st.write("### 1. Neue Paarung erfassen")
-      st.info(
-          "💡 **Hinweis:** Hier trägst du die **Schwinger** (Athleten) ein, die"
-          " gegeneinander antreten."
-      )
       with st.form("add_pairing"):
         gang_nr = st.number_input(
             "Gang-Nummer", min_value=1, max_value=8, value=1
         )
         s1 = st.text_input(
-            "1. Schwinger (Athlet, z.B. Aeschbacher Matthias, S ***)"
+            "1. Schwinger (Athlet, z.B. Aeschbacher Matthias ***)"
         )
-        s2 = st.text_input(
-            "2. Schwinger (Athlet, z.B. Giger Samuel, S ***)"
-        )
+        s2 = st.text_input("2. Schwinger (Athlet, z.B. Giger Samuel ***)")
         if st.form_submit_button("Paarung hinzufügen") and s1 and s2:
           new_id = str(len(pairings) + 1)
           pairings.append({
               "id": new_id,
               "gang": int(gang_nr),
-              "schwinget_1": s1,
-              "schwinget_2": s2,
+              "schwinget_1": s1.strip(),
+              "schwinget_2": s2.strip(),
               "result": None,
           })
           save_data(PAIRINGS_FILE, pairings)
@@ -552,24 +619,7 @@ elif menu == "Admin-Bereich":
             st.rerun()
 
     with tab4:
-      st.write(
-          "### 👥 Tippspiel-Teilnehmer verwalten (Personen, die mit-tippen)"
-      )
-      st.info(
-          "💡 **Hinweis:** Hier verwaltest du ausschliesslich die Spieler,"
-          " welche am Tippspiel teilnehmen (Freunde, Familie, Gäste etc.),"
-          " **nicht** die Schwinger."
-      )
-
-      st.markdown(
-          "Optional (falls du die Schwinger-Startliste als Vorlage nutzen"
-          " möchtest): [Startliste ESV"
-          " (PDF)](https://kilchberger-schwinget.ch/files/folder.28/startliste-esv.pdf)"
-      )
-
-      st.divider()
-      st.write("#### A) Tippspiel-Teilnehmer manuell hinzufügen")
-
+      st.write("### 👥 Tippspiel-Teilnehmer verwalten")
       with st.form("add_single_participant"):
         new_part = st.text_input(
             "Name des Tippspiel-Teilnehmers (z. B. Hansueli)"
@@ -586,10 +636,6 @@ elif menu == "Admin-Bereich":
 
       if participants_list:
         st.divider()
-        st.write(
-            "#### B) Bestehenden Tippspiel-Teilnehmer bearbeiten oder löschen"
-        )
-
         with st.form("edit_delete_participant_form"):
           selected_to_edit = st.selectbox(
               "Teilnehmer auswählen", sorted(participants_list)
@@ -628,52 +674,8 @@ elif menu == "Admin-Bereich":
             st.success(f"Tippspiel-Teilnehmer '{selected_to_edit}' wurde gelöscht.")
             st.rerun()
 
-      st.divider()
-      st.write(
-          "#### C) Per PDF-Upload einlesen (z. B. falls Namensliste als PDF"
-          " vorliegt)"
-      )
-      uploaded_pdf = st.file_uploader(
-          "Teilnehmer-PDF hochladen", type=["pdf", "txt"]
-      )
-
-      if uploaded_pdf is not None:
-        extracted_names = []
-        if uploaded_pdf.name.endswith(".pdf"):
-          try:
-            import pypdf
-
-            reader = pypdf.PdfReader(uploaded_pdf)
-            for page in reader.pages:
-              text = page.extract_text()
-              if text:
-                for line in text.split("\n"):
-                  clean_line = line.strip()
-                  if clean_line and len(clean_line) > 2:
-                    extracted_names.append(clean_line)
-          except Exception as e:
-            st.error(f"Fehler beim Lesen des PDFs: {e}.")
-        else:
-          stringio = uploaded_pdf.getvalue().decode("utf-8")
-          for line in stringio.split("\n"):
-            clean_line = line.strip()
-            if clean_line:
-              extracted_names.append(clean_line)
-
-        if extracted_names:
-          st.write("Gefundene Einträge (Vorschau):", extracted_names[:10])
-          if st.button("Ausgelesene Namen zur Tipper-Liste hinzufügen"):
-            combined = list(set(participants_list + extracted_names))
-            save_data(PARTICIPANTS_FILE, sorted(combined))
-            st.success("Namen erfolgreich zur Teilnehmerliste hinzugefügt!")
-            st.rerun()
-
-      if participants_list:
         st.divider()
-        st.write(
-            f"**Aktuell hinterlegte Tippspiel-Teilnehmer"
-            f" ({len(participants_list)}):**"
-        )
+        st.write(f"**Aktuelle Teilnehmer ({len(participants_list)}):**")
         st.write(", ".join(participants_list))
 
         if st.button("Komplette Tippspiel-Teilnehmer-Liste leeren"):
@@ -777,119 +779,23 @@ elif menu == "Admin-Bereich":
           st.rerun()
 
       st.divider()
-      st.write("### 🧪 Test-Daten generieren (inkl. aktueller 1. Gang)")
-      if st.button("🚀 Test-Dummies & 1. Gang erstellen"):
-        dummy_pairings = [
-            {
-                "id": "1",
-                "gang": 1,
-                "schwinget_1": "Schwyzer Samuel ** (ISV LU)",
-                "schwinget_2": "Zaugg Lars ** (BKSV ET)",
-                "result": None,
-            },
-            {
-                "id": "2",
-                "gang": 1,
-                "schwinget_1": "Bieri Marcel *** (ISV ZG)",
-                "schwinget_2": "Kramer Lario *** (SWSV FR)",
-                "result": None,
-            },
-            {
-                "id": "3",
-                "gang": 1,
-                "schwinget_1": "Collaud Romain *** (SWSV FR)",
-                "schwinget_2": "Strebel Joel *** (NWSV AG)",
-                "result": None,
-            },
-            {
-                "id": "4",
-                "gang": 1,
-                "schwinget_1": "Gwerder Michael *** (ISV SZ)",
-                "schwinget_2": "Lüscher Sinisha *** (NWSV SO)",
-                "result": None,
-            },
-            {
-                "id": "5",
-                "gang": 1,
-                "schwinget_1": "Bissig Lukas *** (ISV UR)",
-                "schwinget_2": "Ott Damian *** (NOSV SG)",
-                "result": None,
-            },
-            {
-                "id": "6",
-                "gang": 1,
-                "schwinget_1": "Burger Matthieu *** (BKSV SL)",
-                "schwinget_2": "Lustenberger Marc *** (ISV LU)",
-                "result": None,
-            },
-            {
-                "id": "7",
-                "gang": 1,
-                "schwinget_1": "Aeschbacher Matthias *** (BKSV ET)",
-                "schwinget_2": "Giger Samuel *** (NOSV TG)",
-                "result": None,
-            },
-            {
-                "id": "8",
-                "gang": 1,
-                "schwinget_1": "Alpiger Nick *** (NWSV AG)",
-                "schwinget_2": "Walther Adrian *** (BKSV ML)",
-                "result": None,
-            },
-            {
-                "id": "9",
-                "gang": 1,
-                "schwinget_1": "Moser Michael *** (BKSV ET)",
-                "schwinget_2": "Schlegel Werner *** (NOSV SG)",
-                "result": None,
-            },
-            {
-                "id": "10",
-                "gang": 1,
-                "schwinget_1": "Orlik Armon *** (NOSV GR)",
-                "schwinget_2": "Staudenmann Fabian *** (BKSV ML)",
-                "result": None,
-            },
-        ]
-        save_data(PAIRINGS_FILE, dummy_pairings)
-
-        dummy_questions = [
-            {
-                "id": "1",
-                "question": "Wer gewinnt den Schlussgang?",
-                "result": "",
-            }
-        ]
-        save_data(QUESTIONS_FILE, dummy_questions)
-
-        dummy_participants = ["Hansueli", "Heiri", "Vreni"]
-        save_data(PARTICIPANTS_FILE, dummy_participants)
-
-        st.success("Paarungen des 1. Ganges erfolgreich geladen!")
-        st.rerun()
-
-      st.divider()
-      st.write("### ⚠️ Reset / Testdaten löschen")
+      st.write("### ⚠️ Reset / Daten zurücksetzen")
 
       confirm_reset = st.checkbox(
           "⚠️ Ja, ich bin absolut sicher, dass ich alle Daten (Tipps,"
-          " Paarungen, Fragen, Teilnehmer) unwiderruflich löschen will."
+          " Paarungen, Fragen, Teilnehmer) auf den Standard-1. Gang"
+          " zurücksetzen will."
       )
 
-      if st.button(
-          "🔄 Alles zurücksetzen (Reset)", disabled=not confirm_reset
-      ):
-        for f in [
-            PAIRINGS_FILE,
-            TIPS_FILE,
-            QUESTIONS_FILE,
-            PARTICIPANTS_FILE,
-        ]:
+      if st.button("🔄 Alles zurücksetzen", disabled=not confirm_reset):
+        for f in [TIPS_FILE, QUESTIONS_FILE, PARTICIPANTS_FILE]:
           if os.path.exists(f):
             os.remove(f)
+        # Paarungen auf Standard zurücksetzen
+        save_data(PAIRINGS_FILE, DEFAULT_PAIRINGS)
         settings["gang_locked"] = {}
         save_data(SETTINGS_FILE, settings)
-        st.success("Alles zurückgesetzt!")
+        st.success("Alles auf den 1. Gang zurückgesetzt!")
         st.rerun()
 
   elif admin_pw:
