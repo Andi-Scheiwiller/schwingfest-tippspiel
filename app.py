@@ -142,13 +142,11 @@ if menu == "Tippspiel":
 
     if participants_list:
       name_options = (
-          ["-- Bitte wählen --"]
-          + sorted(participants_list)
-          + ["+ Anderen / neuen Namen eingeben"]
+          ["-- Bitte wählen --", "+ Name erfassen"] + sorted(participants_list)
       )
       selected_option = st.selectbox("Wähle deinen Namen aus:", name_options)
 
-      if selected_option == "+ Anderen / neuen Namen eingeben":
+      if selected_option == "+ Name erfassen":
         new_typed_name = st.text_input(
             "Gib deinen Namen / Nickname ein (wird automatisch zur"
             " Tippspiel-Liste hinzugefügt):"
@@ -270,8 +268,8 @@ if menu == "Tippspiel":
                     s1 = p["schwinget_1"]
                     s2 = p["schwinget_2"]
 
-                    default_tip = new_user_pairings.get(p_id, s1)
-                    options = [s1, "Gestellt", s2]
+                    default_tip = new_user_pairings.get(p_id, "-")
+                    options = ["-", s1, "Gestellt", s2]
                     default_idx = (
                         options.index(default_tip)
                         if default_tip in options
@@ -373,7 +371,8 @@ if menu == "Tippspiel":
           g_pts = 0
           for p in gang_pairings:
             if p.get("result"):
-              if user_p_tips.get(p["id"]) == p["result"]:
+              tip_val = user_p_tips.get(p["id"])
+              if tip_val and tip_val != "-" and tip_val == p["result"]:
                 g_pts += pts_p
           gang_points_map[gang_nr] = g_pts
           p_points_total += g_pts
@@ -703,7 +702,10 @@ elif menu == "Admin-Bereich":
           user_q = data.get("questions", {})
 
           filled_pairings = sum(
-              1 for p in pairings if user_p.get(p["id"]) is not None
+              1
+              for p in pairings
+              if user_p.get(p["id"]) is not None
+              and user_p.get(p["id"]) != "-"
           )
           filled_questions = sum(
               1
