@@ -500,8 +500,9 @@ if menu == "Tippspiel":
               new_user_questions = user_data.get("questions", {})
               q_points_config = settings.get("question_points", {})
 
-              schlussgang_q_ids = [q["id"] for q in questions if q.get("category"] == "Schlussgangteilnehmer"]
-              sg_results = [str(q.get("result", "")).strip().lower() for q in questions if q.get("category"] == "Schlussgangteilnehmer"]
+              # Alle Schlussgang-Fragen-IDs und deren Resultate ermitteln
+              schlussgang_q_ids = [q["id"] for q in questions if q.get("category") == "Schlussgangteilnehmer"]
+              sg_results = [str(q.get("result", "")).strip().lower() for q in questions if q.get("category") == "Schlussgangteilnehmer"]
               sg_results_clean = [res for res in sg_results if res and res != "-"]
               schlussgang_evaluated = len(sg_results_clean) >= 2
 
@@ -566,6 +567,7 @@ if menu == "Tippspiel":
                       correct_ans_val = str(q.get("result", "")).strip().lower()
 
                       if cat == "Schlussgangteilnehmer" and schlussgang_evaluated:
+                        # Bugfix gegen doppelte Punkte bei identischem Tipp im Schlussgang:
                         if user_ans_val and user_ans_val != "-" and user_ans_val in sg_results_clean:
                           if q_id == schlussgang_q_ids[1] and len(schlussgang_q_ids) > 1:
                             other_q_id = schlussgang_q_ids[0]
@@ -630,9 +632,8 @@ if menu == "Tippspiel":
       q_points_config = settings.get("question_points", {})
       bonus_p_val = settings.get("bonus_pairing_round", 2)
       bonus_q_val = settings.get("bonus_question_round", 2)
-      locked_dict = settings.get("gang_locked", {})
 
-      schlussgang_q_ids = [q["id"] for q in questions if q.get("category"] == "Schlussgangteilnehmer"]
+      schlussgang_q_ids = [q["id"] for q in questions if q.get("category") == "Schlussgangteilnehmer"]
 
       user_stats = {}
       for name, entry_val in tips.items():
@@ -663,7 +664,7 @@ if menu == "Tippspiel":
           gang_points_map[gang_nr] = g_pts
           p_points_total += g_pts
 
-        sg_results = [str(q.get("result", "")).strip().lower() for q in questions if q.get("category"] == "Schlussgangteilnehmer"]
+        sg_results = [str(q.get("result", "")).strip().lower() for q in questions if q.get("category") == "Schlussgangteilnehmer"]
         sg_results_clean = [res for res in sg_results if res and res != "-"]
         schlussgang_evaluated = len(sg_results_clean) >= 2
 
@@ -673,7 +674,7 @@ if menu == "Tippspiel":
             user_ans = str(user_q_tips.get(q_id, "")).strip().lower()
             correct_ans = str(q.get("result", "")).strip().lower()
             
-            if q.get("category"] == "Schlussgangteilnehmer" and schlussgang_evaluated:
+            if q.get("category") == "Schlussgangteilnehmer" and schlussgang_evaluated:
               if user_ans and user_ans != "-" and user_ans in sg_results_clean:
                 if len(schlussgang_q_ids) >= 2 and q_id == schlussgang_q_ids[1]:
                   other_q_id = schlussgang_q_ids[0]
@@ -691,7 +692,6 @@ if menu == "Tippspiel":
             "p_points": p_points_total,
             "bonus_p": 0,
             "bonus_q": 0,
-            "raw_data": data
         }
 
       existing_gangs = set(p["gang"] for p in pairings)
@@ -739,7 +739,6 @@ if menu == "Tippspiel":
             "Bonus Gänge": stats["bonus_p"],
             "Fragen": stats["q_points"],
             "Bonus Fragen": stats["bonus_q"],
-            "raw_data": stats["raw_data"]
         })
 
       scores = sorted(scores, key=lambda x: x["Total"], reverse=True)
@@ -787,64 +786,6 @@ if menu == "Tippspiel":
                 " Pkt.</b></div>",
                 unsafe_allow_html=True,
             )
-
-          # NEU: Aufklappbarer Bereich mit den getippten Resultaten für gesperrte Gänge inklusive Punkteangabe
-          with st.expander(f"🔍 Tipps von {entry['Name']} anzeigen"):
-            user_p_tips = entry["raw_data"].get("pairings", {})
-            user_q_tips = entry["raw_data"].get("questions", {})
-            
-            from itertools import groupby
-            sorted_pairings = sorted(pairings, key=lambda x: x["gang"])
-            
-            has_locked_gangs = any(locked_dict.get(str(g), False) for g in existing_gangs)
-            
-            if not has_locked_gangs:
-              st.info("Bisher sind noch keine Gänge vom Admin gesperrt worden.")
-            else:
-              st.markdown("##### ⚔️ Gesperrte Paarungen & Tipps")
-              for gang_nr, gang_pairings in groupby(sorted_pairings, key=lambda x: x["gang"]):
-                gang_str = str(gang_nr)
-                if locked_dict.get(gang_str, False):
-                  st.markdown(f"**Gang {gang_nr}**")
-                  for p in gang_pairings:
-                    p_id = p["id"]
-                    s1 = p["schwinget_1"]
-                    s2 = p["schwinget_2"]
-                    tip = user_p_tips.get(p_id, "-")
-                    res = p.get("result")
-                    
-                    # Punkte pro Paarung berechnen
-                    p_pts_earned = 0
-                    p_pts_possible = pts_p if res else 0
-                    if res and tip != "-" and tip == res:
-                      p_pts_earned = pts_p
-                    
-                    match_str = f"{s1} vs {s2}"
-                    st.markdown(f"- *{match_str}* ➔ **Tipp:** {tip} | (Punkte: {p_pts_earned} / {p_pts_possible})")
-                  st.write("")
-
-            # Optional auch Zusatzfragen anzeigen (falls gewünscht, hier direkt integriert)
-            if questions:
-              st.markdown("##### 📋 Zusatzfragen & Tipps")
-              for q in questions:
-                q_id = q["id"]
-                q_text = q["question"]
-                q_res = q.get("result")
-                q_tip = user_q_tips.get(q_id, "-")
-                if not q_tip:
-                  q_tip = "-"
-                
-                max_q_pts = q_points_config.get(q_id, 2)
-                q_pts_earned = 0
-                q_pts_possible = max_q_pts if q_res else 0
-                
-                if q_res:
-                  user_ans_val = str(q_tip).strip().lower()
-                  correct_ans_val = str(q_res).strip().lower()
-                  if user_ans_val and user_ans_val == correct_ans_val:
-                    q_pts_earned = max_q_pts
-                
-                st.markdown(f"- *{q_text}* ➔ **Tipp:** {q_tip} | (Punkte: {q_pts_earned} / {q_pts_possible})")
 
 elif menu == "Admin-Bereich":
   st.subheader("⚙️ Admin-Verwaltung")
