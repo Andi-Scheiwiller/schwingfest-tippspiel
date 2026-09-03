@@ -8,7 +8,30 @@ QUESTIONS_FILE = "questions.json"
 SETTINGS_FILE = "settings.json"
 PARTICIPANTS_FILE = "participants.json"
 
-# --- FEST DEFINIERTE STANDARD-PAARUNGEN (1. GANG MIT STERNEN) ---
+# --- ZENTRALE SCHWINGER-LISTE (ALLE SCHWINGER MIT STERNEN) ---
+ALL_SCHWINGER = [
+    "Aeschbacher Matthias ***",
+    "Alpiger Nick ***",
+    "Bieri Marcel ***",
+    "Bissig Lukas ***",
+    "Burger Matthieu ***",
+    "Collaud Romain ***",
+    "Giger Samuel ***",
+    "Gwerder Michael ***",
+    "Kramer Lario ***",
+    "Lüscher Sinisha ***",
+    "Lustenberger Marc ***",
+    "Moser Michael ***",
+    "Orlik Armon ***",
+    "Schlegel Werner ***",
+    "Staudenmann Fabian ***",
+    "Strebel Joel ***",
+    "Ott Damian ***",
+    "Zaugg Lars **",
+    "Schwyzer Samuel **",
+]
+
+# --- FEST DEFINIERTE STANDARD-PAARUNGEN (1. GANG) ---
 DEFAULT_PAIRINGS = [
     {
         "id": "1",
@@ -82,6 +105,67 @@ DEFAULT_PAIRINGS = [
     },
 ]
 
+# --- FEST DEFINIERTE ZUSATZFRAGEN ---
+DEFAULT_QUESTIONS = [
+    {
+        "id": "q1",
+        "question": "Wie viele Gänge gewinnt Andy?",
+        "type": "gang_count",
+        "result": None,
+    },
+    {
+        "id": "q2",
+        "question": "Schlussgangteilnehmer 1",
+        "type": "schwinger",
+        "result": None,
+    },
+    {
+        "id": "q3",
+        "question": "Schlussgangteilnehmer 2",
+        "type": "schwinger",
+        "result": None,
+    },
+    {
+        "id": "q4",
+        "question": (
+            "Wer wird Festsieger? (bei mehreren Siegern gilt der Erstplatzierte"
+            " 1a)"
+        ),
+        "type": "schwinger",
+        "result": None,
+    },
+    {
+        "id": "q5",
+        "question": "Bester Schwinger NOS",
+        "type": "schwinger",
+        "result": None,
+    },
+    {
+        "id": "q6",
+        "question": "Bester Schwinger BKSV",
+        "type": "schwinger",
+        "result": None,
+    },
+    {
+        "id": "q7",
+        "question": "Bester Schwinger ISV",
+        "type": "schwinger",
+        "result": None,
+    },
+    {
+        "id": "q8",
+        "question": "Bester Schwinger NWSV",
+        "type": "schwinger",
+        "result": None,
+    },
+    {
+        "id": "q9",
+        "question": "Bester Schwinger SWSV",
+        "type": "schwinger",
+        "result": None,
+    },
+]
+
 
 def load_data(file_path, default):
   if os.path.exists(file_path):
@@ -106,21 +190,35 @@ st.set_page_config(
 
 st.title("🏆 Tippspiel Kilchberger Schwinget")
 
-# Daten laden (falls pairings.json leer/nicht vorhanden, mit Standard-Paarungen belegen)
+# Daten laden
 pairings = load_data(PAIRINGS_FILE, DEFAULT_PAIRINGS)
 if not pairings:
   pairings = DEFAULT_PAIRINGS
   save_data(PAIRINGS_FILE, pairings)
 
+questions = load_data(QUESTIONS_FILE, DEFAULT_QUESTIONS)
+if not questions:
+  questions = DEFAULT_QUESTIONS
+  save_data(QUESTIONS_FILE, questions)
+
 tips = load_data(TIPS_FILE, {})
-questions = load_data(QUESTIONS_FILE, [])
 participants_list = load_data(PARTICIPANTS_FILE, [])
 settings = load_data(
     SETTINGS_FILE,
     {
         "admin_pw": "schwingen2026",
         "points_pairing": 1,
-        "points_question": 2,
+        "question_points": {
+            "q1": 2,
+            "q2": 3,
+            "q3": 3,
+            "q4": 5,
+            "q5": 2,
+            "q6": 2,
+            "q7": 2,
+            "q8": 2,
+            "q9": 2,
+        },
         "bonus_pairing_round": 2,
         "bonus_question_round": 2,
         "gang_locked": {},
@@ -307,19 +405,39 @@ if menu == "Tippspiel":
               for q in questions:
                 q_id = q["id"]
                 q_text = q["question"]
+                q_type = q.get("type", "schwinger")
                 default_ans = new_user_questions.get(q_id, "")
 
-                st.text_input(q_text, value=default_ans, key=f"q_input_{q_id}")
+                if q_type == "gang_count":
+                  gang_options = ["-"] + [str(i) for i in range(1, 7)]
+                  default_idx = (
+                      gang_options.index(default_ans)
+                      if default_ans in gang_options
+                      else 0
+                  )
+                  ans = st.selectbox(
+                      q_text, gang_options, index=default_idx, key=f"q_sel_{q_id}"
+                  )
+                  new_user_questions[q_id] = None if ans == "-" else ans
+                else:
+                  schwinger_options = ["-"] + sorted(ALL_SCHWINGER)
+                  default_idx = (
+                      schwinger_options.index(default_ans)
+                      if default_ans in schwinger_options
+                      else 0
+                  )
+                  ans = st.selectbox(
+                      q_text,
+                      schwinger_options,
+                      index=default_idx,
+                      key=f"q_sel_{q_id}",
+                  )
+                  new_user_questions[q_id] = None if ans == "-" else ans
+
                 st.write("")
 
               submit_q = st.form_submit_button("Zusatzfragen speichern")
               if submit_q:
-                for q in questions:
-                  q_id = q["id"]
-                  new_user_questions[q_id] = st.session_state.get(
-                      f"q_input_{q_id}", ""
-                  )
-
                 user_data["questions"] = new_user_questions
                 tips[clean_name]["data"] = user_data
                 save_data(TIPS_FILE, tips)
@@ -343,7 +461,7 @@ if menu == "Tippspiel":
       )
     else:
       pts_p = settings.get("points_pairing", 1)
-      pts_q = settings.get("points_question", 2)
+      q_points_config = settings.get("question_points", {})
       bonus_p_val = settings.get("bonus_pairing_round", 2)
       bonus_q_val = settings.get("bonus_question_round", 2)
 
@@ -378,11 +496,12 @@ if menu == "Tippspiel":
           p_points_total += g_pts
 
         for q in questions:
+          q_id = q["id"]
           if q.get("result"):
-            user_ans = str(user_q_tips.get(q["id"], "")).strip().lower()
+            user_ans = str(user_q_tips.get(q_id, "")).strip().lower()
             correct_ans = str(q.get("result", "")).strip().lower()
             if user_ans and user_ans == correct_ans:
-              q_points_val += pts_q
+              q_points_val += q_points_config.get(q_id, 2)
         q_points_total = q_points_val
 
         user_stats[name] = {
@@ -516,22 +635,23 @@ elif menu == "Admin-Bereich":
         gang_nr = st.number_input(
             "Gang-Nummer", min_value=1, max_value=8, value=1
         )
-        s1 = st.text_input(
-            "1. Schwinger (Athlet, z.B. Aeschbacher Matthias ***)"
-        )
-        s2 = st.text_input("2. Schwinger (Athlet, z.B. Giger Samuel ***)")
-        if st.form_submit_button("Paarung hinzufügen") and s1 and s2:
-          new_id = str(len(pairings) + 1)
-          pairings.append({
-              "id": new_id,
-              "gang": int(gang_nr),
-              "schwinget_1": s1.strip(),
-              "schwinget_2": s2.strip(),
-              "result": None,
-          })
-          save_data(PAIRINGS_FILE, pairings)
-          st.success("Paarung hinzugefügt!")
-          st.rerun()
+        s1 = st.selectbox("1. Schwinger", sorted(ALL_SCHWINGER), key="admin_s1")
+        s2 = st.selectbox("2. Schwinger", sorted(ALL_SCHWINGER), key="admin_s2")
+        if st.form_submit_button("Paarung hinzufügen"):
+          if s1 == s2:
+            st.error("Ein Schwinger kann nicht gegen sich selbst antreten.")
+          else:
+            new_id = str(len(pairings) + 1)
+            pairings.append({
+                "id": new_id,
+                "gang": int(gang_nr),
+                "schwinget_1": s1,
+                "schwinget_2": s2,
+                "result": None,
+            })
+            save_data(PAIRINGS_FILE, pairings)
+            st.success("Paarung hinzugefügt!")
+            st.rerun()
 
       st.divider()
       st.write("### 2. Gänge manuell sperren / entsperren")
@@ -587,17 +707,6 @@ elif menu == "Admin-Bereich":
             st.rerun()
 
     with tab3:
-      st.write("### Zusatzfragen verwalten")
-      with st.form("add_question"):
-        q_text = st.text_input("Zusatzfrage (z.B. Wer gewinnt das Schwingfest?)")
-        if st.form_submit_button("Frage hinzufügen") and q_text:
-          q_id = str(len(questions) + 1)
-          questions.append({"id": q_id, "question": q_text, "result": None})
-          save_data(QUESTIONS_FILE, questions)
-          st.success("Frage hinzugefügt!")
-          st.rerun()
-
-      st.divider()
       st.write("### Richtige Antworten für Zusatzfragen eintragen")
       if not questions:
         st.info("Noch keine Zusatzfragen erfasst.")
@@ -605,12 +714,38 @@ elif menu == "Admin-Bereich":
         with st.form("q_result_form"):
           for q in questions:
             q_id = q["id"]
+            q_text = q["question"]
+            q_type = q.get("type", "schwinger")
             current_res = q.get("result", "")
-            q["result"] = st.text_input(
-                f"Antwort für: '{q['question']}'",
-                value=current_res if current_res else "",
-                key=f"q_res_{q_id}",
-            )
+
+            if q_type == "gang_count":
+              gang_options = ["-"] + [str(i) for i in range(1, 7)]
+              default_idx = (
+                  gang_options.index(current_res)
+                  if current_res in gang_options
+                  else 0
+              )
+              selected_res = st.selectbox(
+                  f"Antwort für: '{q_text}'",
+                  gang_options,
+                  index=default_idx,
+                  key=f"q_res_{q_id}",
+              )
+              q["result"] = None if selected_res == "-" else selected_res
+            else:
+              schwinger_options = ["-"] + sorted(ALL_SCHWINGER)
+              default_idx = (
+                  schwinger_options.index(current_res)
+                  if current_res in schwinger_options
+                  else 0
+              )
+              selected_res = st.selectbox(
+                  f"Antwort für: '{q_text}'",
+                  schwinger_options,
+                  index=default_idx,
+                  key=f"q_res_{q_id}",
+              )
+              q["result"] = None if selected_res == "-" else selected_res
 
           if st.form_submit_button("Antworten speichern"):
             save_data(QUESTIONS_FILE, questions)
@@ -746,12 +881,22 @@ elif menu == "Admin-Bereich":
             max_value=10,
             value=settings.get("points_pairing", 1),
         )
-        p_q = st.number_input(
-            "Punkte pro richtiger Zusatzfrage",
-            min_value=1,
-            max_value=20,
-            value=settings.get("points_question", 2),
-        )
+
+        st.write("#### Punkte pro Zusatzfrage:")
+        q_points_config = settings.get("question_points", {})
+        new_q_points = {}
+        for q in questions:
+          q_id = q["id"]
+          q_text = q["question"]
+          default_val = q_points_config.get(q_id, 2)
+          new_q_points[q_id] = st.number_input(
+              f"Punkte für: '{q_text}'",
+              min_value=0,
+              max_value=20,
+              value=default_val,
+              key=f"pts_q_{q_id}",
+          )
+
         b_p = st.number_input(
             "Bonuspunkte für den Rundensieger (pro Gang)",
             min_value=0,
@@ -771,7 +916,7 @@ elif menu == "Admin-Bereich":
         submit_settings = st.form_submit_button("Einstellungen speichern")
         if submit_settings:
           settings["points_pairing"] = int(p_p)
-          settings["points_question"] = int(p_q)
+          settings["question_points"] = new_q_points
           settings["bonus_pairing_round"] = int(b_p)
           settings["bonus_question_round"] = int(b_q)
           if new_pw:
@@ -793,8 +938,8 @@ elif menu == "Admin-Bereich":
         for f in [TIPS_FILE, QUESTIONS_FILE, PARTICIPANTS_FILE]:
           if os.path.exists(f):
             os.remove(f)
-        # Paarungen auf Standard zurücksetzen
         save_data(PAIRINGS_FILE, DEFAULT_PAIRINGS)
+        save_data(QUESTIONS_FILE, DEFAULT_QUESTIONS)
         settings["gang_locked"] = {}
         save_data(SETTINGS_FILE, settings)
         st.success("Alles auf den 1. Gang zurückgesetzt!")
