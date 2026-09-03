@@ -288,8 +288,8 @@ settings = load_data(
         },
         "bonus_pairing_round": 2,
         "bonus_question_round": 2,
-        "gang_unlocked": {},
-        "questions_unlocked": False,
+        "gang_locked": {},
+        "questions_locked": False,
     },
 )
 
@@ -418,11 +418,12 @@ if menu == "Tippspiel":
           if not pairings:
             st.info("Noch keine Paarungen erfasst.")
           else:
-            unlocked_dict = settings.get("gang_unlocked", {})
-            unlocked_gangs = [g for g in range(1, 7) if unlocked_dict.get(str(g), False)]
+            locked_dict = settings.get("gang_locked", {})
+            # Nur Gänge anzeigen, die NICHT gesperrt sind (Gänge 1 bis 6)
+            available_gangs = [g for g in range(1, 7) if not locked_dict.get(str(g), False)]
 
-            if not unlocked_gangs:
-              st.info("Aktuell sind noch keine Gänge für die Tippabgabe freigeschaltet.")
+            if not available_gangs:
+              st.info("Zurzeit sind keine Gänge verfügbar.")
             else:
               with st.form("tipping_form_pairings"):
                 new_user_pairings = user_data.get("pairings", {})
@@ -436,7 +437,7 @@ if menu == "Tippspiel":
                     sorted_pairings, key=lambda x: x["gang"]
                 ):
                   gang_str = str(gang_nr)
-                  if not unlocked_dict.get(gang_str, False):
+                  if locked_dict.get(gang_str, False):
                     continue
 
                   with st.container(border=True):
@@ -499,9 +500,9 @@ if menu == "Tippspiel":
           if not questions:
             st.info("Noch keine Zusatzfragen vorhanden.")
           else:
-            q_is_unlocked = settings.get("questions_unlocked", False)
-            if not q_is_unlocked:
-              st.info("Die Zusatzfragen sind aktuell noch nicht freigeschaltet.")
+            q_is_locked = settings.get("questions_locked", False)
+            if q_is_locked:
+              st.info("Zurzeit sind keine Zusatzfragen verfügbar.")
             else:
               with st.form("tipping_form_questions"):
                 new_user_questions = user_data.get("questions", {})
@@ -853,7 +854,7 @@ elif menu == "Admin-Bereich":
 
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "Schwinger-Liste",
-        "Paarungen & Gänge freigeben",
+        "Paarungen & Gänge sperren",
         "Resultate Eintragen",
         "Zusatzfragen",
         "Tippspiel-Teilnehmer",
@@ -941,21 +942,21 @@ elif menu == "Admin-Bereich":
             st.rerun()
 
       st.divider()
-      st.write("### 2. Gänge für Tippabgabe freigeben (1. bis 6. Gang)")
-      unlocked_dict = settings.get("gang_unlocked", {})
-      with st.form("unlock_gangs_form"):
-        new_unlocked_dict = {}
+      st.write("### 2. Gänge für Tippabgabe sperren (1. bis 6. Gang)")
+      locked_dict = settings.get("gang_locked", {})
+      with st.form("lock_gangs_form"):
+        new_locked_dict = {}
         for g in range(1, 7):
-          current_state = unlocked_dict.get(str(g), False)
-          new_unlocked_dict[str(g)] = st.checkbox(
-              f"{g}. Gang für Tippabgabe freigeben",
+          current_state = locked_dict.get(str(g), False)
+          new_locked_dict[str(g)] = st.checkbox(
+              f"{g}. Gang für Tipps sperren",
               value=current_state,
-              key=f"unlock_g_{g}",
+              key=f"lock_g_{g}",
           )
-        if st.form_submit_button("Freigabe-Status speichern"):
-          settings["gang_unlocked"] = new_unlocked_dict
+        if st.form_submit_button("Sperr-Status speichern"):
+          settings["gang_locked"] = new_locked_dict
           save_data(SETTINGS_FILE, settings)
-          st.success("Gang-Freigaben aktualisiert!")
+          st.success("Gang-Sperren aktualisiert!")
           st.rerun()
 
     with tab3:
@@ -987,17 +988,17 @@ elif menu == "Admin-Bereich":
             st.rerun()
 
     with tab4:
-      st.write("### 🔓 Zusatzfragen freigeben")
-      q_unlocked_current = settings.get("questions_unlocked", False)
-      with st.form("unlock_questions_form"):
-        new_q_unlocked = st.checkbox(
-            "Zusatzfragen für die Tippabgabe freigeben",
-            value=q_unlocked_current
+      st.write("### 🔒 Zusatzfragen sperren")
+      q_locked_current = settings.get("questions_locked", False)
+      with st.form("lock_questions_form"):
+        new_q_locked = st.checkbox(
+            "Zusatzfragen für die Tippabgabe sperren",
+            value=q_locked_current
         )
-        if st.form_submit_button("Freigabe-Status speichern"):
-          settings["questions_unlocked"] = new_q_unlocked
+        if st.form_submit_button("Sperr-Status speichern"):
+          settings["questions_locked"] = new_q_locked
           save_data(SETTINGS_FILE, settings)
-          st.success("Freigabestatus der Zusatzfragen aktualisiert!")
+          st.success("Sperrstatus der Zusatzfragen aktualisiert!")
           st.rerun()
 
       st.divider()
@@ -1229,8 +1230,8 @@ elif menu == "Admin-Bereich":
         save_data(QUESTIONS_FILE, DEFAULT_QUESTIONS)
         save_data(SCHWINGER_FILE, DEFAULT_SCHWINGER)
         save_data(PARTICIPANTS_FILE, DEFAULT_PARTICIPANTS)
-        settings["gang_unlocked"] = {}
-        settings["questions_unlocked"] = False
+        settings["gang_locked"] = {}
+        settings["questions_locked"] = False
         save_data(SETTINGS_FILE, settings)
         st.success("Alles auf den Standard zurückgesetzt!")
         st.rerun()
