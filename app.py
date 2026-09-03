@@ -1,5 +1,7 @@
+import copy
 import json
 import os
+import re
 import streamlit as st
 
 PAIRINGS_FILE = "pairings.json"
@@ -9,73 +11,73 @@ SETTINGS_FILE = "settings.json"
 PARTICIPANTS_FILE = "participants.json"
 SCHWINGER_FILE = "schwinger.json"
 
-# --- OFFIZIELLE SCHWINGER-LISTE (Alphabetisch nach Nachname, Nick Alpiger auf NWSV korrigiert) ---
+# --- OFFIZIELLE SCHWINGER-LISTE (Startliste ESV, Stand 30.08.2026) ---
 DEFAULT_SCHWINGER = [
     # BKSV (Bernisch-kantonaler Schwingerverband)
     {"id": 1, "name": "Aeschbacher Matthias ***", "verband": "BKSV"},
-    {"id": 2, "name": "Dubach Damian *", "verband": "BKSV"},
-    {"id": 3, "name": "Gasser Dominik **", "verband": "BKSV"},
-    {"id": 4, "name": "Gobeli Patrick *", "verband": "BKSV"},
+    {"id": 2, "name": "Burger Etienne ***", "verband": "BKSV"},
+    {"id": 3, "name": "Burger Matthieu ***", "verband": "BKSV"},
+    {"id": 4, "name": "Gasser Dominik ***", "verband": "BKSV"},
     {"id": 5, "name": "Kämpf Bernhard ***", "verband": "BKSV"},
-    {"id": 6, "name": "Ledermann Michael **", "verband": "BKSV"},
+    {"id": 6, "name": "Ledermann Michael ***", "verband": "BKSV"},
     {"id": 7, "name": "Moser Michael ***", "verband": "BKSV"},
-    {"id": 8, "name": "Rutsch Remo **", "verband": "BKSV"},
-    {"id": 9, "name": "Scheuner Adrian *", "verband": "BKSV"},
-    {"id": 10, "name": "Scheuner David *", "verband": "BKSV"},
-    {"id": 11, "name": "Schwander Severin **", "verband": "BKSV"},
+    {"id": 8, "name": "Nägeli Leandro **", "verband": "BKSV"},
+    {"id": 9, "name": "Rutsch Remo **", "verband": "BKSV"},
+    {"id": 10, "name": "Scheuner David **", "verband": "BKSV"},
+    {"id": 11, "name": "Schwander Severin ***", "verband": "BKSV"},
     {"id": 12, "name": "Staudenmann Fabian ***", "verband": "BKSV"},
-    {"id": 13, "name": "Trittibach Silvan *", "verband": "BKSV"},
+    {"id": 13, "name": "Trittibach Silvan **", "verband": "BKSV"},
     {"id": 14, "name": "Walther Adrian ***", "verband": "BKSV"},
     {"id": 15, "name": "Zaugg Lars **", "verband": "BKSV"},
     # ISV (Innerschweizer Schwingerverband)
     {"id": 16, "name": "Ambühl Joel ***", "verband": "ISV"},
-    {"id": 17, "name": "Appert Silvan *", "verband": "ISV"},
-    {"id": 18, "name": "Bieri Marcel ***", "verband": "ISV"},
-    {"id": 19, "name": "Bissig Luc *", "verband": "ISV"},
-    {"id": 20, "name": "Bissig Lukas ***", "verband": "ISV"},
-    {"id": 21, "name": "Bruhin Fredi *", "verband": "ISV"},
-    {"id": 22, "name": "Bucher Christian *", "verband": "ISV"},
-    {"id": 23, "name": "Doppmann Urs *", "verband": "ISV"},
+    {"id": 17, "name": "Amrhyn Jonas **", "verband": "ISV"},
+    {"id": 18, "name": "Appert Silvan ***", "verband": "ISV"},
+    {"id": 19, "name": "Bieri Marcel ***", "verband": "ISV"},
+    {"id": 20, "name": "Bissig Luc **", "verband": "ISV"},
+    {"id": 21, "name": "Bissig Lukas ***", "verband": "ISV"},
+    {"id": 22, "name": "Bruhin Fredi **", "verband": "ISV"},
     {"id": 24, "name": "Gwerder Michael ***", "verband": "ISV"},
-    {"id": 25, "name": "Heinzer Lukas *", "verband": "ISV"},
-    {"id": 26, "name": "Lang Sven *", "verband": "ISV"},
+    {"id": 25, "name": "Heinzer Lukas **", "verband": "ISV"},
+    {"id": 26, "name": "Lang Sven ***", "verband": "ISV"},
     {"id": 27, "name": "Lustenberger Marc ***", "verband": "ISV"},
-    {"id": 28, "name": "Reichmuth Roland *", "verband": "ISV"},
-    {"id": 29, "name": "Schönbächler Martin *", "verband": "ISV"},
+    {"id": 28, "name": "Reichmuth Roland **", "verband": "ISV"},
+    {"id": 29, "name": "Schönbächler Martin **", "verband": "ISV"},
     {"id": 30, "name": "Schwyzer Samuel **", "verband": "ISV"},
-    {"id": 31, "name": "Zemp Christian *", "verband": "ISV"},
+    {"id": 31, "name": "Zemp Christian **", "verband": "ISV"},
+    {"id": 61, "name": "Betschart Patrick **", "verband": "ISV"},
     # NOSV (Nordostschweizer Schwingerverband)
-    {"id": 32, "name": "Bachmann Janos *", "verband": "NOSV"},
-    {"id": 33, "name": "Biäsch Christian *", "verband": "NOSV"},
+    {"id": 32, "name": "Bachmann Janos **", "verband": "NOSV"},
+    {"id": 33, "name": "Biäsch Christian ***", "verband": "NOSV"},
     {"id": 34, "name": "Bösch Mario **", "verband": "NOSV"},
     {"id": 35, "name": "Giger Samuel ***", "verband": "NOSV"},
-    {"id": 36, "name": "Good Marco *", "verband": "NOSV"},
-    {"id": 37, "name": "Kindlimann Fabian ***", "verband": "NOSV"},
-    {"id": 38, "name": "Müller Josias *", "verband": "NOSV"},
-    {"id": 39, "name": "Oettli Silvio **", "verband": "NOSV"},
-    {"id": 40, "name": "Orlik Armon ***", "verband": "NOSV"},
-    {"id": 41, "name": "Ott Damian ***", "verband": "NOSV"},
-    {"id": 42, "name": "Roth Martin **", "verband": "NOSV"},
-    {"id": 43, "name": "Schlegel Werner ***", "verband": "NOSV"},
-    {"id": 44, "name": "Schneider Domenic ***", "verband": "NOSV"},
-    {"id": 45, "name": "Schneider Mario **", "verband": "NOSV"},
-    {"id": 46, "name": "Signer Andy **", "verband": "NOSV"},
-    # NWSV (Nordwestschweizer Schwingerverband inkl. Nick Alpiger)
-    {"id": 47, "name": "Alpiger Nick ***", "verband": "NWSV"},
-    {"id": 48, "name": "Döbeli Andreas ***", "verband": "NWSV"},
-    {"id": 49, "name": "Frank Marius **", "verband": "NWSV"},
-    {"id": 50, "name": "Glutz Jonas *", "verband": "NWSV"},
-    {"id": 51, "name": "Hermann Oliver *", "verband": "NWSV"},
-    {"id": 52, "name": "Odermatt Adrian **", "verband": "NWSV"},
-    {"id": 53, "name": "Scherz Valentin *", "verband": "NWSV"},
+    {"id": 36, "name": "Good Marco ***", "verband": "NOSV"},
+    {"id": 37, "name": "Habegger Andrin **", "verband": "NOSV"},
+    {"id": 38, "name": "Kindlimann Fabian ***", "verband": "NOSV"},
+    {"id": 39, "name": "Kolb This **", "verband": "NOSV"},
+    {"id": 40, "name": "Müller Josias **", "verband": "NOSV"},
+    {"id": 41, "name": "Orlik Armon ***", "verband": "NOSV"},
+    {"id": 42, "name": "Ott Damian ***", "verband": "NOSV"},
+    {"id": 43, "name": "Roth Martin ***", "verband": "NOSV"},
+    {"id": 44, "name": "Schlegel Werner ***", "verband": "NOSV"},
+    {"id": 45, "name": "Schneider Domenic ***", "verband": "NOSV"},
+    {"id": 46, "name": "Schneider Mario **", "verband": "NOSV"},
+    {"id": 47, "name": "Signer Andy **", "verband": "NOSV"},
+    # NWSV (Nordwestschweizer Schwingerverband)
+    {"id": 48, "name": "Alpiger Nick ***", "verband": "NWSV"},
+    {"id": 49, "name": "Döbeli Andreas ***", "verband": "NWSV"},
+    {"id": 50, "name": "Frank Marius ***", "verband": "NWSV"},
+    {"id": 51, "name": "Glutz Jonas **", "verband": "NWSV"},
+    {"id": 52, "name": "Lüscher Sinisha ***", "verband": "NWSV"},
+    {"id": 53, "name": "Odermatt Adrian ***", "verband": "NWSV"},
     {"id": 54, "name": "Strebel Joel ***", "verband": "NWSV"},
-    {"id": 55, "name": "Voggensperger Lars **", "verband": "NWSV"},
+    {"id": 55, "name": "Voggensperger Lars ***", "verband": "NWSV"},
     # SWSV (Südwestschweizer Schwingerverband)
-    {"id": 56, "name": "Borcard Johann *", "verband": "SWSV"},
+    {"id": 56, "name": "Borcard Johann **", "verband": "SWSV"},
     {"id": 57, "name": "Collaud Romain ***", "verband": "SWSV"},
     {"id": 58, "name": "Kramer Lario ***", "verband": "SWSV"},
-    {"id": 59, "name": "Tornare Laurent *", "verband": "SWSV"},
-    {"id": 60, "name": "Tornare Paul *", "verband": "SWSV"},
+    {"id": 59, "name": "Tornare Laurent **", "verband": "SWSV"},
+    {"id": 60, "name": "Tornare Paul **", "verband": "SWSV"},
 ]
 
 DEFAULT_PAIRINGS = [
@@ -104,7 +106,7 @@ DEFAULT_PAIRINGS = [
         "id": "4",
         "gang": 1,
         "schwinget_1": "Gwerder Michael ***",
-        "schwinget_2": "Lüscher Sinisha *",
+        "schwinget_2": "Lüscher Sinisha ***",
         "result": None,
     },
     {
@@ -117,7 +119,7 @@ DEFAULT_PAIRINGS = [
     {
         "id": "6",
         "gang": 1,
-        "schwinget_1": "Burger Matthieu *",
+        "schwinget_1": "Burger Matthieu ***",
         "schwinget_2": "Lustenberger Marc ***",
         "result": None,
     },
@@ -227,6 +229,28 @@ DEFAULT_QUESTIONS = [
 
 DEFAULT_PARTICIPANTS = []
 
+DEFAULT_SETTINGS = {
+    "admin_pw": "schwingen2026",
+    "points_pairing": 1,
+    "question_points": {
+        "q1": 2,
+        "q2": 3,
+        "q3": 3,
+        "q4": 5,
+        "q5": 2,
+        "q6": 2,
+        "q7": 2,
+        "q8": 2,
+        "q9": 2,
+    },
+    "bonus_pairing_round": 2,
+    "bonus_question_round": 2,
+    "gang_locked": {},
+    "questions_locked": False,
+    # Version 2 = offizielle Startliste 2026 + verlustfreie Namensmigration.
+    "data_version": 2,
+}
+
 
 def load_data(file_path, default):
   if os.path.exists(file_path):
@@ -243,6 +267,97 @@ def save_data(file_path, data):
     json.dump(data, f, ensure_ascii=False, indent=4)
 
 
+def schwinger_base_name(value):
+  """Entfernt nur die am Ende stehenden Kranz-Sterne für einen stabilen Namensabgleich."""
+  if not isinstance(value, str):
+    return value
+  return re.sub(r"\s+\*{1,3}\s*$", "", value.strip())
+
+
+def migrate_schwinger_references_to_official(pairings, questions, tips):
+  """
+  Schreibt bestehende Schwinger-Referenzen verlustfrei auf die aktuelle offizielle
+  Schreibweise um. Nicht zuordenbare Werte bleiben bewusst unverändert.
+  """
+  official_by_base = {schwinger_base_name(s["name"]): s["name"] for s in DEFAULT_SCHWINGER}
+
+  def official_name(value):
+    if not isinstance(value, str):
+      return value
+    return official_by_base.get(schwinger_base_name(value), value)
+
+  # Bestehende Paarungen und bereits eingetragene Resultate behalten.
+  for pairing in pairings:
+    pairing["schwinget_1"] = official_name(pairing.get("schwinget_1"))
+    pairing["schwinget_2"] = official_name(pairing.get("schwinget_2"))
+    if pairing.get("result") not in (None, "-", "Gestellt"):
+      pairing["result"] = official_name(pairing.get("result"))
+
+  # Bestehende Resultate der Zusatzfragen behalten.
+  for question in questions:
+    if question.get("type") in ("schwinger_all", "schwinger_verband"):
+      if question.get("result") not in (None, "-"):
+        question["result"] = official_name(question.get("result"))
+
+  # Sämtliche bereits abgegebenen Tipps behalten und nur die Schreibweise aktualisieren.
+  for entry in tips.values():
+    data = entry.get("data", {}) if isinstance(entry, dict) and "data" in entry else entry
+    if not isinstance(data, dict):
+      continue
+
+    user_pairings = data.get("pairings", {})
+    if isinstance(user_pairings, dict):
+      for pairing_id, value in list(user_pairings.items()):
+        if value not in (None, "-", "Gestellt"):
+          user_pairings[pairing_id] = official_name(value)
+
+    user_questions = data.get("questions", {})
+    if isinstance(user_questions, dict):
+      for question_id, value in list(user_questions.items()):
+        if value not in (None, "-"):
+          user_questions[question_id] = official_name(value)
+
+  return pairings, questions, tips
+
+
+def get_schlussgang_points(questions, user_questions, q_points_config):
+  """Punkte für Schlussgangteilnehmer unabhängig von der Tipp-Reihenfolge.
+
+  Ein korrekt getippter Schwinger zählt genau einmal, auch wenn derselbe Name
+  in beiden Tippfeldern eingetragen wurde. Ausgewertet wird erst, wenn beide
+  Schlussgangteilnehmer als Resultat erfasst sind.
+  """
+  sg_questions = [
+      q for q in questions if q.get("category") == "Schlussgangteilnehmer"
+  ]
+  points_by_qid = {q["id"]: 0 for q in sg_questions}
+
+  result_names = [
+      str(q.get("result")).strip().lower()
+      for q in sg_questions
+      if q.get("result") is not None
+      and str(q.get("result")).strip() not in ("", "-")
+  ]
+  if len(result_names) < 2:
+    return points_by_qid
+
+  correct_names = set(result_names)
+  already_counted = set()
+  for q in sg_questions:
+    q_id = q["id"]
+    user_answer = str(user_questions.get(q_id, "")).strip().lower()
+    if (
+        user_answer
+        and user_answer != "-"
+        and user_answer in correct_names
+        and user_answer not in already_counted
+    ):
+      points_by_qid[q_id] = q_points_config.get(q_id, 2)
+      already_counted.add(user_answer)
+
+  return points_by_qid
+
+
 st.set_page_config(
     page_title="Tippspiel Kilchberger Schwinget",
     page_icon="🇨🇭",
@@ -252,46 +367,50 @@ st.set_page_config(
 st.title("🏆 Tippspiel Kilchberger Schwinget")
 
 # Daten laden
-schwinger_list = load_data(SCHWINGER_FILE, DEFAULT_SCHWINGER)
-if not schwinger_list:
-  schwinger_list = DEFAULT_SCHWINGER
-  save_data(SCHWINGER_FILE, schwinger_list)
-
-pairings = load_data(PAIRINGS_FILE, DEFAULT_PAIRINGS)
+# Wichtig: Vorhandene Dateien haben immer Vorrang. Dadurch bleiben Tipps,
+# Resultate, Sperren und Einstellungen bei einem normalen Code-Update erhalten.
+pairings = load_data(PAIRINGS_FILE, copy.deepcopy(DEFAULT_PAIRINGS))
 if not pairings:
-  pairings = DEFAULT_PAIRINGS
+  pairings = copy.deepcopy(DEFAULT_PAIRINGS)
   save_data(PAIRINGS_FILE, pairings)
 
-questions = load_data(QUESTIONS_FILE, DEFAULT_QUESTIONS)
+questions = load_data(QUESTIONS_FILE, copy.deepcopy(DEFAULT_QUESTIONS))
 if not questions:
-  questions = DEFAULT_QUESTIONS
+  questions = copy.deepcopy(DEFAULT_QUESTIONS)
   save_data(QUESTIONS_FILE, questions)
 
-participants_list = load_data(PARTICIPANTS_FILE, DEFAULT_PARTICIPANTS)
-
+participants_list = load_data(PARTICIPANTS_FILE, copy.deepcopy(DEFAULT_PARTICIPANTS))
 tips = load_data(TIPS_FILE, {})
-settings = load_data(
-    SETTINGS_FILE,
-    {
-        "admin_pw": "schwingen2026",
-        "points_pairing": 1,
-        "question_points": {
-            "q1": 2,
-            "q2": 3,
-            "q3": 3,
-            "q4": 5,
-            "q5": 2,
-            "q6": 2,
-            "q7": 2,
-            "q8": 2,
-            "q9": 2,
-        },
-        "bonus_pairing_round": 2,
-        "bonus_question_round": 2,
-        "gang_locked": {},
-        "questions_locked": False,
-    },
-)
+settings = load_data(SETTINGS_FILE, copy.deepcopy(DEFAULT_SETTINGS))
+if not isinstance(settings, dict):
+  settings = copy.deepcopy(DEFAULT_SETTINGS)
+
+# Die vorhandene Datenversion vor dem Ergänzen neuer Felder merken.
+existing_data_version = settings.get("data_version", 0)
+
+# Fehlende neue Einstellungsfelder ergänzen, bestehende Werte aber nie überschreiben.
+for key, default_value in DEFAULT_SETTINGS.items():
+  if key not in settings:
+    settings[key] = copy.deepcopy(default_value)
+
+# Einmalige verlustfreie Migration auf die offizielle Startliste.
+# Die Spiel-/Admin-Daten werden nicht zurückgesetzt; bestehende Schwinger-Tipps
+# werden lediglich auf die aktuelle offizielle Schreibweise (inkl. Sterne) gebracht.
+if existing_data_version < DEFAULT_SETTINGS["data_version"]:
+  pairings, questions, tips = migrate_schwinger_references_to_official(
+      pairings, questions, tips
+  )
+  save_data(PAIRINGS_FILE, pairings)
+  save_data(QUESTIONS_FILE, questions)
+  save_data(TIPS_FILE, tips)
+  save_data(SCHWINGER_FILE, copy.deepcopy(DEFAULT_SCHWINGER))
+  settings["data_version"] = DEFAULT_SETTINGS["data_version"]
+  save_data(SETTINGS_FILE, settings)
+
+schwinger_list = load_data(SCHWINGER_FILE, copy.deepcopy(DEFAULT_SCHWINGER))
+if not schwinger_list:
+  schwinger_list = copy.deepcopy(DEFAULT_SCHWINGER)
+  save_data(SCHWINGER_FILE, schwinger_list)
 
 # Hilfslisten für Dropdowns
 all_schwinger_names = sorted([s["name"] for s in schwinger_list])
@@ -508,14 +627,9 @@ if menu == "Tippspiel":
                 new_user_questions = user_data.get("questions", {})
                 q_points_config = settings.get("question_points", {})
 
-                schlussgang_q_ids = [q["id"] for q in questions if q.get("category") == "Schlussgangteilnehmer"]
-                sg_results = [
-                    str(q.get("result")).strip().lower()
-                    for q in questions
-                    if q.get("category") == "Schlussgangteilnehmer" and q.get("result") is not None
-                ]
-                sg_results_clean = [res for res in sg_results if res and res != "-"]
-                schlussgang_evaluated = len(sg_results_clean) >= 2
+                schlussgang_points = get_schlussgang_points(
+                    questions, new_user_questions, q_points_config
+                )
 
                 categories = [
                     "Siege Andy",
@@ -577,20 +691,10 @@ if menu == "Tippspiel":
                         user_ans_val = str(default_ans).strip().lower()
                         correct_ans_val = str(q.get("result")).strip().lower()
 
-                        if cat == "Schlussgangteilnehmer" and schlussgang_evaluated:
-                          if user_ans_val and user_ans_val != "-" and user_ans_val in sg_results_clean:
-                            if q_id == schlussgang_q_ids[1] and len(schlussgang_q_ids) > 1:
-                              other_q_id = schlussgang_q_ids[0]
-                              other_user_ans = str(new_user_questions.get(other_q_id, "")).strip().lower()
-                              if user_ans_val == other_user_ans:
-                                achieved_q_pts = 0 if other_user_ans == user_ans_val and q_id != schlussgang_q_ids[0] else max_q_pts
-                              else:
-                                achieved_q_pts = max_q_pts
-                            else:
-                              achieved_q_pts = max_q_pts
-                        else:
-                          if user_ans_val and user_ans_val == correct_ans_val:
-                            achieved_q_pts = max_q_pts
+                        if cat == "Schlussgangteilnehmer":
+                          achieved_q_pts = schlussgang_points.get(q_id, 0)
+                        elif user_ans_val and user_ans_val == correct_ans_val:
+                          achieved_q_pts = max_q_pts
 
                       col_l, col_r = st.columns([4, 1.3])
                       with col_l:
@@ -643,8 +747,6 @@ if menu == "Tippspiel":
       bonus_p_val = settings.get("bonus_pairing_round", 2)
       bonus_q_val = settings.get("bonus_question_round", 2)
 
-      schlussgang_q_ids = [q["id"] for q in questions if q.get("category") == "Schlussgangteilnehmer"]
-
       user_stats = {}
       for name, entry_val in tips.items():
         data = (
@@ -674,13 +776,9 @@ if menu == "Tippspiel":
           gang_points_map[gang_nr] = g_pts
           p_points_total += g_pts
 
-        sg_results = [
-            str(q.get("result")).strip().lower()
-            for q in questions
-            if q.get("category") == "Schlussgangteilnehmer" and q.get("result") is not None
-        ]
-        sg_results_clean = [res for res in sg_results if res and res != "-"]
-        schlussgang_evaluated = len(sg_results_clean) >= 2
+        schlussgang_points = get_schlussgang_points(
+            questions, user_q_tips, q_points_config
+        )
 
         for q in questions:
           q_id = q["id"]
@@ -688,17 +786,10 @@ if menu == "Tippspiel":
             user_ans = str(user_q_tips.get(q_id, "")).strip().lower()
             correct_ans = str(q.get("result")).strip().lower()
             
-            if q.get("category") == "Schlussgangteilnehmer" and schlussgang_evaluated:
-              if user_ans and user_ans != "-" and user_ans in sg_results_clean:
-                if len(schlussgang_q_ids) >= 2 and q_id == schlussgang_q_ids[1]:
-                  other_q_id = schlussgang_q_ids[0]
-                  other_user_ans = str(user_q_tips.get(other_q_id, "")).strip().lower()
-                  if user_ans == other_user_ans:
-                    continue
-                q_points_val += q_points_config.get(q_id, 2)
-            else:
-              if user_ans and user_ans == correct_ans:
-                q_points_val += q_points_config.get(q_id, 2)
+            if q.get("category") == "Schlussgangteilnehmer":
+              q_points_val += schlussgang_points.get(q_id, 0)
+            elif user_ans and user_ans == correct_ans:
+              q_points_val += q_points_config.get(q_id, 2)
 
         user_stats[name] = {
             "gang_points_map": gang_points_map,
@@ -798,13 +889,19 @@ if menu == "Tippspiel":
           with st.expander(f"Tipps von {entry['Name']} anzeigen"):
             user_p_tips = entry["raw_data"].get("pairings", {})
             user_q_tips = entry["raw_data"].get("questions", {})
-            
+
             from itertools import groupby
             sorted_pairings = sorted(pairings, key=lambda x: x["gang"])
-            
-            if pairings:
+            locked_dict = settings.get("gang_locked", {})
+            visible_pairings = [
+                p for p in sorted_pairings
+                if locked_dict.get(str(p["gang"]), False)
+            ]
+            questions_visible = settings.get("questions_locked", False)
+
+            if visible_pairings:
               st.markdown("<p style='font-size: 0.9rem; font-weight: bold; margin-bottom: 4px;'>⚔️ Paarungen & Tipps</p>", unsafe_allow_html=True)
-              for gang_nr, gang_pairings in groupby(sorted_pairings, key=lambda x: x["gang"]):
+              for gang_nr, gang_pairings in groupby(visible_pairings, key=lambda x: x["gang"]):
                 st.markdown(f"<p style='font-size: 0.9rem; font-weight: bold; margin-bottom: 2px;'>{gang_nr}. Gang</p>", unsafe_allow_html=True)
                 for p in gang_pairings:
                   p_id = p["id"]
@@ -812,18 +909,21 @@ if menu == "Tippspiel":
                   s2 = p["schwinget_2"]
                   tip = user_p_tips.get(p_id, "-")
                   res = p.get("result")
-                  
+
                   p_pts_earned = 0
                   p_pts_possible = pts_p if res else 0
                   if res and tip != "-" and tip == res:
                     p_pts_earned = pts_p
-                  
+
                   match_str = f"{s1} vs {s2}"
                   st.markdown(f"<p style='font-size: 0.9rem; color: #333; margin: 0 0 2px 10px;'>• {match_str} ➔ <b>{tip}</b> (Pkt: {p_pts_earned}/{p_pts_possible})</p>", unsafe_allow_html=True)
                 st.write("")
 
-            if questions:
+            if questions_visible and questions:
               st.markdown("<p style='font-size: 0.9rem; font-weight: bold; margin-top: 8px; margin-bottom: 4px;'>📋 Zusatzfragen & Tipps</p>", unsafe_allow_html=True)
+              schlussgang_points = get_schlussgang_points(
+                  questions, user_q_tips, q_points_config
+              )
               for q in questions:
                 q_id = q["id"]
                 q_text = q["question"]
@@ -831,19 +931,24 @@ if menu == "Tippspiel":
                 q_tip = user_q_tips.get(q_id, "-")
                 if not q_tip:
                   q_tip = "-"
-                
+
                 max_q_pts = q_points_config.get(q_id, 2)
                 q_pts_earned = 0
                 q_pts_possible = max_q_pts if q_res is not None else 0
-                
-                if q_res is not None:
+
+                if q.get("category") == "Schlussgangteilnehmer":
+                  q_pts_earned = schlussgang_points.get(q_id, 0)
+                elif q_res is not None:
                   user_ans_val = str(q_tip).strip().lower()
                   correct_ans_val = str(q_res).strip().lower()
                   if user_ans_val and user_ans_val == correct_ans_val:
                     q_pts_earned = max_q_pts
-                
+
                 res_display = f" | Richtig: <b>{q_res}</b>" if q_res is not None and q_res != "" else ""
                 st.markdown(f"<p style='font-size: 0.9rem; color: #333; margin: 0 0 2px 10px;'>• {q_text} ➔ Tipp: <b>{q_tip}</b>{res_display} (Pkt: {q_pts_earned}/{q_pts_possible})</p>", unsafe_allow_html=True)
+
+            if not visible_pairings and not questions_visible:
+              st.info("Noch keine Tipps zur Anzeige freigegeben.")
 
 elif menu == "Admin-Bereich":
   st.subheader("⚙️ Admin-Verwaltung")
@@ -1214,26 +1319,20 @@ elif menu == "Admin-Bereich":
       st.divider()
       st.write("### ⚠️ Reset / Daten zurücksetzen")
       confirm_reset = st.checkbox(
-          "⚠️ Ja, ich bin absolut sicher, dass ich alle Daten (Tipps,"
-          " Paarungen, Fragen, Teilnehmer) auf den Standard zurücksetzen will."
+          "⚠️ Ja, ich bin absolut sicher, dass ich alle Daten und Einstellungen "
+          "(Tipps, Paarungen, Resultate, Fragen, Teilnehmer, Sperren und Punkte) "
+          "auf den Ausgangszustand zurücksetzen will."
       )
       if st.button("🔄 Alles zurücksetzen", disabled=not confirm_reset):
-        for f in [
-            TIPS_FILE,
-            QUESTIONS_FILE,
-            PARTICIPANTS_FILE,
-            SCHWINGER_FILE,
-        ]:
-          if os.path.exists(f):
-            os.remove(f)
-        save_data(PAIRINGS_FILE, DEFAULT_PAIRINGS)
-        save_data(QUESTIONS_FILE, DEFAULT_QUESTIONS)
-        save_data(SCHWINGER_FILE, DEFAULT_SCHWINGER)
-        save_data(PARTICIPANTS_FILE, DEFAULT_PARTICIPANTS)
-        settings["gang_locked"] = {}
-        settings["questions_locked"] = False
-        save_data(SETTINGS_FILE, settings)
-        st.success("Alles auf den Standard zurückgesetzt!")
+        # Bewusster Komplett-Reset: alle Spiel- und Admin-Eingaben zurück auf
+        # den definierten Ausgangszustand. Erst dieser Button löscht Eingaben.
+        save_data(TIPS_FILE, {})
+        save_data(PAIRINGS_FILE, copy.deepcopy(DEFAULT_PAIRINGS))
+        save_data(QUESTIONS_FILE, copy.deepcopy(DEFAULT_QUESTIONS))
+        save_data(SCHWINGER_FILE, copy.deepcopy(DEFAULT_SCHWINGER))
+        save_data(PARTICIPANTS_FILE, copy.deepcopy(DEFAULT_PARTICIPANTS))
+        save_data(SETTINGS_FILE, copy.deepcopy(DEFAULT_SETTINGS))
+        st.success("Alles vollständig auf den Ausgangszustand zurückgesetzt!")
         st.rerun()
 
   elif admin_pw:
