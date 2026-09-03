@@ -13,8 +13,8 @@ SETTINGS_FILE = "settings.json"
 PARTICIPANTS_FILE = "participants.json"
 SCHWINGER_FILE = "schwinger.json"
 
-APP_VERSION = "v6"
-APP_BUILD = "03.09.2026 12:11"
+APP_VERSION = "v7"
+APP_BUILD = "03.09.2026 13:30"
 
 # --- OFFIZIELLE SCHWINGER-LISTE (Startliste ESV, Stand 30.08.2026) ---
 DEFAULT_SCHWINGER = [
@@ -413,6 +413,33 @@ st.set_page_config(
 )
 
 st.title("🏆 Tippspiel Kilchberger Schwinget")
+
+# Einheitliches, responsives Raster für Statistik und Ranglisten-Details.
+st.markdown("""
+<style>
+.pair-grid {
+  display:grid; grid-template-columns:minmax(0,1fr) 44px 58px 44px minmax(0,1fr) 44px;
+  column-gap:7px; align-items:center; font-size:.82rem; line-height:1.25; margin:0 0 6px 0; color:#222;
+}
+.pair-grid .n1 {text-align:left; min-width:0;} .pair-grid .n2 {text-align:left; min-width:0;}
+.pair-grid .pct,.pair-grid .draw {text-align:right; white-space:nowrap;}
+.tip-grid {
+  display:grid; grid-template-columns:20px minmax(0,1fr) 22px 12px minmax(0,1fr) 22px 46px;
+  column-gap:5px; align-items:center; font-size:.88rem; line-height:1.25; margin:0 0 5px 6px;
+}
+.tip-grid .sym,.tip-grid .mark,.tip-grid .pts {white-space:nowrap;} .tip-grid .pts{text-align:right;}
+.q-grid {display:grid; grid-template-columns:minmax(0,1fr) 52px; column-gap:10px; align-items:start; font-size:.82rem; line-height:1.25; margin:0 0 5px 0; color:#222;}
+.q-grid .count{text-align:right; white-space:nowrap; font-weight:700;}
+.qtip-grid {display:grid; grid-template-columns:20px minmax(0,1.35fr) minmax(0,.9fr) 48px; column-gap:7px; align-items:start; font-size:.88rem; line-height:1.25; margin:0 0 6px 6px;}
+.qtip-grid .pts{text-align:right; white-space:nowrap;}
+@media (max-width: 520px) {
+  .pair-grid {grid-template-columns:minmax(0,1fr) 34px 44px 34px minmax(0,1fr) 34px; column-gap:4px; font-size:.72rem;}
+  .tip-grid {grid-template-columns:16px minmax(0,1fr) 18px 8px minmax(0,1fr) 18px 38px; column-gap:3px; font-size:.76rem; margin-left:0;}
+  .q-grid {font-size:.76rem; grid-template-columns:minmax(0,1fr) 48px;}
+  .qtip-grid {grid-template-columns:16px minmax(0,1fr) minmax(0,.8fr) 40px; column-gap:4px; font-size:.76rem; margin-left:0;}
+}
+</style>
+""", unsafe_allow_html=True)
 
 # Daten laden
 # Wichtig: Vorhandene Dateien haben immer Vorrang. Dadurch bleiben Tipps,
@@ -1017,7 +1044,7 @@ if menu == "Tippspiel":
               if n:
                 a = round(100*c.get(p["schwinget_1"],0)/n); d = round(100*c.get("Gestellt",0)/n); b = round(100*c.get(p["schwinget_2"],0)/n)
                 st.markdown(
-                    f"<p style='{stats_line_style}'>{p['schwinget_1']}: <b>{a}%</b> · −: <b>{d}%</b> · {p['schwinget_2']}: <b>{b}%</b></p>",
+                    f"<div class='pair-grid'><span class='n1'>{p['schwinget_1']}</span><b class='pct'>{a}%</b><span class='draw'>Gestellt</span><b class='pct'>{d}%</b><span class='n2'>{p['schwinget_2']}</span><b class='pct'>{b}%</b></div>",
                     unsafe_allow_html=True,
                 )
           if settings.get("questions_locked", False):
@@ -1037,7 +1064,7 @@ if menu == "Tippspiel":
                 for x in range(1,7):
                   count=c.get(str(x),0); tipword="Tipp" if count==1 else "Tipps"; winword="Sieg" if x==1 else "Siege"
                   st.markdown(
-                      f"<p style='{stats_line_style}'>{x} {winword}: <b>{count} {tipword}</b></p>",
+                      f"<div class='q-grid'><span>{x} {winword}</span><span class='count'>{count} {tipword}</span></div>",
                       unsafe_allow_html=True,
                   )
               elif q.get("category") == "Schlussgangteilnehmer" and q.get("id") != "q2":
@@ -1054,14 +1081,14 @@ if menu == "Tippspiel":
                 st.markdown(f"<p style='{stats_head_style}'>Schlussgangteilnehmer</p>", unsafe_allow_html=True)
                 for val,count in c.most_common(5):
                   st.markdown(
-                      f"<p style='{stats_line_style}'>{val}: <b>{count} {'Tipp' if count==1 else 'Tipps'}</b></p>",
+                      f"<div class='q-grid'><span>{val}</span><span class='count'>{count} {'Tipp' if count==1 else 'Tipps'}</span></div>",
                       unsafe_allow_html=True,
                   )
               else:
                 st.markdown(f"<p style='{stats_head_style}'>{q['question']}</p>", unsafe_allow_html=True)
                 for val,count in c.most_common(5):
                   st.markdown(
-                      f"<p style='{stats_line_style}'>{val}: <b>{count} {'Tipp' if count==1 else 'Tipps'}</b></p>",
+                      f"<div class='q-grid'><span>{val}</span><span class='count'>{count} {'Tipp' if count==1 else 'Tipps'}</span></div>",
                       unsafe_allow_html=True,
                   )
 
@@ -1149,8 +1176,16 @@ if menu == "Tippspiel":
                     tip_color = "#333333"
                     tip_symbol = ""
                     tip_weight = "400"
+                  if tip == "Gestellt":
+                    m1, m2 = "−", "−"
+                  elif tip == s1:
+                    m1, m2 = "+", "0"
+                  elif tip == s2:
+                    m1, m2 = "0", "+"
+                  else:
+                    m1, m2 = "", ""
                   st.markdown(
-                      f"<p style='font-size:0.9rem;color:{tip_color};font-weight:{tip_weight};margin:0 0 2px 10px;'>{tip_symbol} {tip_display} <span style='color:{tip_color}'>({p_pts_earned}/{p_pts_possible})</span></p>",
+                      f"<div class='tip-grid' style='color:{tip_color};font-weight:{tip_weight};'><span class='sym'>{tip_symbol}</span><span>{s1}</span><b class='mark'>{m1}</b><span>·</span><span>{s2}</span><b class='mark'>{m2}</b><span class='pts'>{p_pts_earned}/{p_pts_possible}</span></div>",
                       unsafe_allow_html=True,
                   )
                 st.write("")
@@ -1195,7 +1230,7 @@ if menu == "Tippspiel":
                   q_symbol = ""
                   q_weight = "400"
                 st.markdown(
-                    f"<p style='font-size:0.9rem;color:{q_tip_color};font-weight:{q_weight};margin:0 0 2px 10px;'>{q_symbol} {q_text} ➔ Tipp: <b>{q_tip}</b>{res_display} (Pkt: {q_pts_earned}/{q_pts_possible})</p>",
+                    f"<div class='qtip-grid' style='color:{q_tip_color};font-weight:{q_weight};'><span>{q_symbol}</span><span>{q_text}</span><b>{q_tip}</b><span class='pts'>{q_pts_earned}/{q_pts_possible}</span></div>",
                     unsafe_allow_html=True,
                 )
 
