@@ -777,24 +777,24 @@ if menu == "Tippspiel":
           col1, col2 = st.columns([5.2, 1.8])
           with col1:
             st.markdown(
-                f"<div style='display: flex; align-items: baseline; gap: 8px;'>"
+                f"<div style='display: flex; align-items: center; gap: 8px; margin-left: 6px;'>"
                 f"<span style='font-size: 1.1rem; font-weight: bold;'>{rank_display}</span>"
                 f"<span style='font-size: 1.0rem; font-weight: bold;'>{entry['Name']}</span>"
                 f"</div>"
-                f"<div style='font-size: 0.75rem; color: gray; margin-top: 2px; margin-left: 26px;'>"
+                f"<div style='font-size: 0.75rem; color: gray; margin-top: 2px; margin-left: 34px;'>"
                 f"G: {entry['Gänge']}(+{entry['Bonus Gänge']}B) | F: {entry['Fragen']}(+{entry['Bonus Fragen']}B)"
                 f"</div>",
                 unsafe_allow_html=True,
             )
           with col2:
             st.markdown(
-                f"<div style='text-align: right; padding-top: 2px;'>"
+                f"<div style='display: flex; align-items: center; justify-content: flex-end; height: 100%; min-height: 38px;'>"
                 f"<b style='font-size: 1.15rem; color: #ff4b4b;'>{entry['Total']} Pkt.</b>"
                 f"</div>",
                 unsafe_allow_html=True,
             )
 
-          with st.expander(f"▼ Tipps von {entry['Name']} anzeigen"):
+          with st.expander(f"Tipps von {entry['Name']} anzeigen"):
             user_p_tips = entry["raw_data"].get("pairings", {})
             user_q_tips = entry["raw_data"].get("questions", {})
             
@@ -804,13 +804,13 @@ if menu == "Tippspiel":
             has_locked_gangs = any(locked_dict.get(str(g), False) for g in existing_gangs)
             
             if not has_locked_gangs:
-              st.markdown("<p style='font-size: 0.85rem; color: #666;'>Bisher sind noch keine Gänge vom Admin gesperrt worden.</p>", unsafe_allow_html=True)
+              st.markdown("<p style='font-size: 0.9rem; color: #333;'>Bisher sind noch keine Gänge vom Admin gesperrt worden.</p>", unsafe_allow_html=True)
             else:
               st.markdown("<p style='font-size: 0.9rem; font-weight: bold; margin-bottom: 4px;'>⚔️ Gesperrte Paarungen & Tipps</p>", unsafe_allow_html=True)
               for gang_nr, gang_pairings in groupby(sorted_pairings, key=lambda x: x["gang"]):
                 gang_str = str(gang_nr)
                 if locked_dict.get(gang_str, False):
-                  st.markdown(f"<p style='font-size: 0.85rem; font-weight: bold; margin-bottom: 2px;'>Gang {gang_nr}</p>", unsafe_allow_html=True)
+                  st.markdown(f"<p style='font-size: 0.9rem; font-weight: bold; margin-bottom: 2px;'>Gang {gang_nr}</p>", unsafe_allow_html=True)
                   for p in gang_pairings:
                     p_id = p["id"]
                     s1 = p["schwinget_1"]
@@ -824,7 +824,7 @@ if menu == "Tippspiel":
                       p_pts_earned = pts_p
                     
                     match_str = f"{s1} vs {s2}"
-                    st.markdown(f"<p style='font-size: 0.8rem; color: #666; margin: 0 0 2px 10px;'>• <i>{match_str}</i> ➔ <b>{tip}</b> (Pkt: {p_pts_earned}/{p_pts_possible})</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='font-size: 0.9rem; color: #333; margin: 0 0 2px 10px;'>• {match_str} ➔ <b>{tip}</b> (Pkt: {p_pts_earned}/{p_pts_possible})</p>", unsafe_allow_html=True)
                   st.write("")
 
             if questions:
@@ -849,9 +849,9 @@ if menu == "Tippspiel":
                     if user_ans_val and user_ans_val == correct_ans_val:
                       q_pts_earned = max_q_pts
                   
-                  st.markdown(f"<p style='font-size: 0.8rem; color: #666; margin: 0 0 2px 10px;'>• <i>{q_text}</i> ➔ <b>{q_tip}</b> (Pkt: {q_pts_earned}/{q_pts_possible})</p>", unsafe_allow_html=True)
+                  st.markdown(f"<p style='font-size: 0.9rem; color: #333; margin: 0 0 2px 10px;'>• {q_text} ➔ <b>{q_tip}</b> (Pkt: {q_pts_earned}/{q_pts_possible})</p>", unsafe_allow_html=True)
               else:
-                st.markdown("<p style='font-size: 0.8rem; color: #888; font-style: italic; margin-top: 6px;'>Zusatzfragen werden erst nach der Sperre angezeigt.</p>", unsafe_allow_html=True)
+                st.markdown("<p style='font-size: 0.9rem; color: #333; margin-top: 6px;'>Zusatzfragen werden erst nach der Sperre angezeigt.</p>", unsafe_allow_html=True)
 
 elif menu == "Admin-Bereich":
   st.subheader("⚙️ Admin-Verwaltung")
@@ -1000,6 +1000,20 @@ elif menu == "Admin-Bereich":
             st.rerun()
 
     with tab4:
+      st.write("### 🔒 Zusatzfragen sperren / entsperren")
+      q_locked_current = settings.get("questions_locked", False)
+      with st.form("lock_questions_form"):
+        new_q_locked = st.checkbox(
+            "Alle Zusatzfragen für die Tippabgabe sperren 🔒",
+            value=q_locked_current
+        )
+        if st.form_submit_button("Sperr-Status speichern"):
+          settings["questions_locked"] = new_q_locked
+          save_data(SETTINGS_FILE, settings)
+          st.success("Sperrstatus der Zusatzfragen aktualisiert!")
+          st.rerun()
+
+      st.divider()
       st.write("### Richtige Antworten für Zusatzfragen eintragen")
       if not questions:
         st.info("Noch keine Zusatzfragen erfasst.")
@@ -1158,12 +1172,6 @@ elif menu == "Admin-Bereich":
     with tab7:
       st.write("### Einstellungen & Punkte")
       with st.form("settings_form"):
-        q_locked_current = settings.get("questions_locked", False)
-        new_q_locked = st.checkbox(
-            "🔒 Alle Zusatzfragen für die Tippabgabe sperren",
-            value=q_locked_current
-        )
-
         p_p = st.number_input(
             "Punkte pro richtigem Paarungs-Tipp",
             min_value=1,
@@ -1204,7 +1212,6 @@ elif menu == "Admin-Bereich":
 
         submit_settings = st.form_submit_button("Einstellungen speichern")
         if submit_settings:
-          settings["questions_locked"] = new_q_locked
           settings["points_pairing"] = int(p_p)
           settings["question_points"] = new_q_points
           settings["bonus_pairing_round"] = int(b_p)
