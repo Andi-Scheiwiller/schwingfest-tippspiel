@@ -608,6 +608,7 @@ if menu == "Tippspiel":
           if not pairings:
             st.info("Noch keine Paarungen erfasst.")
           else:
+            from itertools import groupby
             locked_dict = settings.get("gang_locked", {})
             # Nur Gänge anzeigen, die NICHT gesperrt sind (Gänge 1 bis 6)
             available_gangs = [g for g in range(1, 7) if not locked_dict.get(str(g), False)]
@@ -617,8 +618,6 @@ if menu == "Tippspiel":
             else:
               new_user_pairings = user_data.get("pairings", {})
               pts_p_val = settings.get("points_pairing", 1)
-
-              from itertools import groupby
 
               # Aktuellster verfügbarer Gang steht immer oben.
               sorted_pairings = sorted(pairings, key=lambda x: x["gang"], reverse=True)
@@ -680,6 +679,44 @@ if menu == "Tippspiel":
                     st.write("")
 
               st.caption("✓ Änderungen werden automatisch gespeichert.")
+
+            # Gesperrte eigene Tipps bleiben unterhalb der offenen Gänge sichtbar.
+            locked_pairings_own = [
+                p for p in pairings
+                if locked_dict.get(str(p.get("gang")), False)
+            ]
+            if locked_pairings_own:
+              st.markdown("### 🔒 Gesperrte Gänge")
+              st.caption("Diese Tipps sind gesperrt und können nicht mehr geändert werden.")
+              sorted_locked_own = sorted(
+                  locked_pairings_own, key=lambda x: x["gang"], reverse=True
+              )
+              for gang_nr, gang_pairings in groupby(
+                  sorted_locked_own, key=lambda x: x["gang"]
+              ):
+                with st.container(border=True):
+                  st.markdown(f"### {gang_nr}. Gang 🔒")
+                  st.write("")
+                  for p in gang_pairings:
+                    p_id = p["id"]
+                    s1 = p["schwinget_1"]
+                    s2 = p["schwinget_2"]
+                    saved_tip = user_data.get("pairings", {}).get(p_id, "-")
+                    options = ["-", s1, "Gestellt", s2]
+                    saved_idx = options.index(saved_tip) if saved_tip in options else 0
+                    st.markdown(
+                        f"<p style='font-size:1.0rem;font-weight:600;margin-bottom:0px;padding-top:4px;'>{s1}  ⚔️  {s2}</p>",
+                        unsafe_allow_html=True,
+                    )
+                    st.selectbox(
+                        f"locked_{clean_name}_{p_id}",
+                        options,
+                        index=saved_idx,
+                        key=f"locked_tip_{clean_name}_{p_id}",
+                        label_visibility="collapsed",
+                        disabled=True,
+                    )
+                    st.write("")
 
         with sub_tab_q:
           st.write("")
@@ -961,9 +998,11 @@ if menu == "Tippspiel":
       locked_stats = settings.get("gang_locked", {})
       if any(locked_stats.get(str(g), False) for g in existing_gangs) or settings.get("questions_locked", False):
         with st.expander("📊 Tippstatistik"):
+          stats_line_style = "font-size:0.82rem;color:#222;line-height:1.15;margin:0 0 1px 0;"
+          stats_head_style = "font-size:0.9rem;color:#111;font-weight:700;line-height:1.15;margin:6px 0 2px 0;"
           locked_pairings = [p for p in pairings if locked_stats.get(str(p.get("gang")), False)]
           for g in sorted({p["gang"] for p in locked_pairings}, reverse=True):
-            st.markdown(f"**{g}. Gang**")
+            st.markdown(f"<p style='{stats_head_style}'>{g}. Gang</p>", unsafe_allow_html=True)
             for p in [x for x in locked_pairings if x["gang"] == g]:
               vals = []
               for e in tips.values():
@@ -974,10 +1013,14 @@ if menu == "Tippspiel":
               c = Counter(vals); n = sum(c.values())
               if n:
                 a = round(100*c.get(p["schwinget_1"],0)/n); d = round(100*c.get("Gestellt",0)/n); b = round(100*c.get(p["schwinget_2"],0)/n)
-                st.caption(f"{p['schwinget_1']}: {a}% · −: {d}% · {p['schwinget_2']}: {b}%")
+                st.markdown(
+                    f"<p style='{stats_line_style}'>{p['schwinget_1']}: <b>{a}%</b> · −: <b>{d}%</b> · {p['schwinget_2']}: <b>{b}%</b></p>",
+                    unsafe_allow_html=True,
+                )
           if settings.get("questions_locked", False):
-            st.markdown("**📋 Zusatzfragen**")
+            st.markdown(f"<p style='{stats_head_style}'>📋 Zusatzfragen</p>", unsafe_allow_html=True)
             for q in questions:
+              # Der Tiebreaker gehört bewusst nicht zur Tippstatistik.
               if q.get("type") == "winner_points":
                 continue
               vals=[]
@@ -987,10 +1030,13 @@ if menu == "Tippspiel":
                 if v not in (None,"","-"): vals.append(str(v))
               c=Counter(vals)
               if q.get("type") == "gang_count":
-                st.markdown(f"**{q['question']}**")
+                st.markdown(f"<p style='{stats_head_style}'>{q['question']}</p>", unsafe_allow_html=True)
                 for x in range(1,7):
                   count=c.get(str(x),0); tipword="Tipp" if count==1 else "Tipps"; winword="Sieg" if x==1 else "Siege"
-                  st.caption(f"{x} {winword}: {count} {tipword}")
+                  st.markdown(
+                      f"<p style='{stats_line_style}'>{x} {winword}: <b>{count} {tipword}</b></p>",
+                      unsafe_allow_html=True,
+                  )
               elif q.get("category") == "Schlussgangteilnehmer" and q.get("id") != "q2":
                 continue
               elif q.get("category") == "Schlussgangteilnehmer":
@@ -1002,25 +1048,19 @@ if menu == "Tippspiel":
                       v=d.get("questions",{}).get(qid)
                       if v not in (None,"","-"): combined.append(str(v))
                 c=Counter(combined)
-                st.markdown("**Schlussgangteilnehmer**")
-                for val,count in c.most_common(5): st.caption(f"{val}: {count} {'Tipp' if count==1 else 'Tipps'}")
+                st.markdown(f"<p style='{stats_head_style}'>Schlussgangteilnehmer</p>", unsafe_allow_html=True)
+                for val,count in c.most_common(5):
+                  st.markdown(
+                      f"<p style='{stats_line_style}'>{val}: <b>{count} {'Tipp' if count==1 else 'Tipps'}</b></p>",
+                      unsafe_allow_html=True,
+                  )
               else:
-                st.markdown(f"**{q['question']}**")
-                for val,count in c.most_common(5): st.caption(f"{val}: {count} {'Tipp' if count==1 else 'Tipps'}")
-
-            # Tiebreaker separat von den Zusatzfragen ausweisen.
-            tb_q = next((q for q in questions if q.get("type") == "winner_points"), None)
-            if tb_q:
-              tb_vals = []
-              for e in tips.values():
-                d = e.get("data", {}) if isinstance(e, dict) and "data" in e else e
-                v = d.get("questions", {}).get(tb_q["id"]) if isinstance(d, dict) else None
-                if v not in (None, "", "-"):
-                  tb_vals.append(str(v))
-              tb_counts = Counter(tb_vals)
-              st.markdown("**🎯 Tiebreaker – Punkte Festsieger**")
-              for val, count in tb_counts.most_common(5):
-                st.caption(f"{val} Punkte: {count} {'Tipp' if count == 1 else 'Tipps'}")
+                st.markdown(f"<p style='{stats_head_style}'>{q['question']}</p>", unsafe_allow_html=True)
+                for val,count in c.most_common(5):
+                  st.markdown(
+                      f"<p style='{stats_line_style}'>{val}: <b>{count} {'Tipp' if count==1 else 'Tipps'}</b></p>",
+                      unsafe_allow_html=True,
+                  )
 
       current_rank = 1
       for i, entry in enumerate(scores):
@@ -1097,7 +1137,14 @@ if menu == "Tippspiel":
                     tip_display = f"{s1} 0 · <b>{s2} +</b>"
                   else:
                     tip_display = f"{s1} · {s2} —"
-                  st.markdown(f"<p style='font-size: 0.9rem; color: #333; margin: 0 0 2px 10px;'>• {tip_display} <span style='color:#777'>({p_pts_earned}/{p_pts_possible})</span></p>", unsafe_allow_html=True)
+                  if res:
+                    tip_color = "#176b3a" if tip != "-" and tip == res else "#777777"
+                  else:
+                    tip_color = "#333333"
+                  st.markdown(
+                      f"<p style='font-size:0.9rem;color:{tip_color};margin:0 0 2px 10px;'>• {tip_display} <span style='color:{tip_color}'>({p_pts_earned}/{p_pts_possible})</span></p>",
+                      unsafe_allow_html=True,
+                  )
                 st.write("")
 
             if questions_visible and questions:
@@ -1126,7 +1173,16 @@ if menu == "Tippspiel":
                     q_pts_earned = max_q_pts
 
                 res_display = f" | Richtig: <b>{q_res}</b>" if q_res is not None and q_res != "" else ""
-                st.markdown(f"<p style='font-size: 0.9rem; color: #333; margin: 0 0 2px 10px;'>• {q_text} ➔ Tipp: <b>{q_tip}</b>{res_display} (Pkt: {q_pts_earned}/{q_pts_possible})</p>", unsafe_allow_html=True)
+                if q.get("type") == "winner_points":
+                  q_tip_color = "#333333"
+                elif q_res is not None:
+                  q_tip_color = "#176b3a" if q_pts_earned > 0 else "#777777"
+                else:
+                  q_tip_color = "#333333"
+                st.markdown(
+                    f"<p style='font-size:0.9rem;color:{q_tip_color};margin:0 0 2px 10px;'>• {q_text} ➔ Tipp: <b>{q_tip}</b>{res_display} (Pkt: {q_pts_earned}/{q_pts_possible})</p>",
+                    unsafe_allow_html=True,
+                )
 
             if not visible_pairings and not questions_visible:
               st.info("Noch keine Tipps zur Anzeige freigegeben.")
