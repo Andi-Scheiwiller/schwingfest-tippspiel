@@ -156,18 +156,21 @@ DEFAULT_QUESTIONS = [
         "id": "q1",
         "question": "Wie viele Gänge gewinnt Andy?",
         "type": "gang_count",
+        "category": "Siege Andy",
         "result": None,
     },
     {
         "id": "q2",
         "question": "Schlussgangteilnehmer 1",
         "type": "schwinger_all",
+        "category": "Schlussgangteilnehmer",
         "result": None,
     },
     {
         "id": "q3",
         "question": "Schlussgangteilnehmer 2",
         "type": "schwinger_all",
+        "category": "Schlussgangteilnehmer",
         "result": None,
     },
     {
@@ -177,6 +180,7 @@ DEFAULT_QUESTIONS = [
             " 1a)"
         ),
         "type": "schwinger_all",
+        "category": "Sieger",
         "result": None,
     },
     {
@@ -184,6 +188,7 @@ DEFAULT_QUESTIONS = [
         "question": "Bester Schwinger NOS",
         "type": "schwinger_verband",
         "verband": "NOSV",
+        "category": "Beste Schwinger",
         "result": None,
     },
     {
@@ -191,6 +196,7 @@ DEFAULT_QUESTIONS = [
         "question": "Bester Schwinger BKSV",
         "type": "schwinger_verband",
         "verband": "BKSV",
+        "category": "Beste Schwinger",
         "result": None,
     },
     {
@@ -198,6 +204,7 @@ DEFAULT_QUESTIONS = [
         "question": "Bester Schwinger ISV",
         "type": "schwinger_verband",
         "verband": "ISV",
+        "category": "Beste Schwinger",
         "result": None,
     },
     {
@@ -205,6 +212,7 @@ DEFAULT_QUESTIONS = [
         "question": "Bester Schwinger NWSV",
         "type": "schwinger_verband",
         "verband": "NWSV",
+        "category": "Beste Schwinger",
         "result": None,
     },
     {
@@ -212,6 +220,7 @@ DEFAULT_QUESTIONS = [
         "question": "Bester Schwinger SWSV",
         "type": "schwinger_verband",
         "verband": "SWSV",
+        "category": "Beste Schwinger",
         "result": None,
     },
 ]
@@ -286,7 +295,7 @@ settings = load_data(
     },
 )
 
-# Hilfslisten für Dropdowns (alphabetisch sortiert nach Nachname-Vorname, da die Liste so aufgebaut ist)
+# Hilfslisten für Dropdowns
 all_schwinger_names = sorted([s["name"] for s in schwinger_list])
 
 # Hauptnavigation
@@ -436,12 +445,19 @@ if menu == "Tippspiel":
                     )
 
                     label = f"{s1}  ⚔️  {s2}"
+                    # Vergrösserte Schrift und deutlicherer Kontrast für Paarungen
+                    st.markdown(
+                        f"<p"
+                        f" style='font-size:1.15rem;font-weight:600;margin-bottom:0px;'>{label}</p>",
+                        unsafe_allow_html=True,
+                    )
                     tip = st.selectbox(
                         label,
                         options,
                         index=default_idx,
                         key=f"tip_{p_id}",
                         disabled=is_locked,
+                        label_visibility="collapsed",
                     )
                     new_user_pairings[p_id] = tip
                     st.write("")
@@ -462,35 +478,76 @@ if menu == "Tippspiel":
             with st.form("tipping_form_questions"):
               new_user_questions = user_data.get("questions", {})
 
-              for q in questions:
-                q_id = q["id"]
-                q_text = q["question"]
-                q_type = q.get("type", "schwinger_all")
-                q_verband = q.get("verband", None)
-                default_ans = new_user_questions.get(q_id, "")
+              # Fragen nach Kategorien gruppieren für eine saubere Gliederung
+              categories = [
+                  "Siege Andy",
+                  "Schlussgangteilnehmer",
+                  "Sieger",
+                  "Beste Schwinger",
+              ]
 
-                if q_type == "gang_count":
-                  options = ["-"] + [str(i) for i in range(1, 7)]
-                elif q_type == "schwinger_verband" and q_verband:
-                  # Nur Schwinger des jeweiligen Verbandes (bereits alphabetisch sortiert)
-                  options = ["-"] + sorted([
-                      s["name"]
-                      for s in schwinger_list
-                      if s["verband"] == q_verband
-                  ])
-                else:  # schwinger_all
-                  options = ["-"] + all_schwinger_names
+              for cat in categories:
+                cat_questions = [
+                    q
+                    for q in questions
+                    if q.get("category", "Beste Schwinger") == cat
+                ]
+                if cat_questions:
+                  st.markdown(
+                      f"<h3"
+                      f" style='color:#ff4b4b;margin-top:15px;margin-bottom:5px;'>{cat}</h3>",
+                      unsafe_allow_html=True,
+                  )
+                  st.markdown("<hr style='margin-top:0px;margin-bottom:15px;'>", unsafe_allow_html=True)
 
-                default_idx = (
-                    options.index(default_ans)
-                    if default_ans in options
-                    else 0
-                )
-                ans = st.selectbox(
-                    q_text, options, index=default_idx, key=f"q_sel_{q_id}"
-                )
-                new_user_questions[q_id] = None if ans == "-" else ans
-                st.write("")
+                  for q in cat_questions:
+                    q_id = q["id"]
+                    q_text = q["question"]
+                    q_type = q.get("type", "schwinger_all")
+                    q_verband = q.get("verband", None)
+                    default_ans = new_user_questions.get(q_id, "")
+
+                    if q_type == "gang_count":
+                      options = ["-"] + [str(i) for i in range(1, 7)]
+                    elif q_type == "schwinger_verband" and q_verband:
+                      # Nick Alpiger ausschliessen, falls NOSV gewählt ist
+                      if q_verband == "NOSV":
+                        options = ["-"] + sorted([
+                            s["name"]
+                            for s in schwinger_list
+                            if s["verband"] == q_verband
+                            and not s["name"].startswith("Alpiger Nick")
+                        ])
+                      else:
+                        options = ["-"] + sorted([
+                            s["name"]
+                            for s in schwinger_list
+                            if s["verband"] == q_verband
+                        ])
+                    else:  # schwinger_all
+                      options = ["-"] + all_schwinger_names
+
+                    default_idx = (
+                        options.index(default_ans)
+                        if default_ans in options
+                        else 0
+                    )
+
+                    # Vergrösserte Schrift für Zusatzfragen
+                    st.markdown(
+                        f"<p"
+                        f" style='font-size:1.15rem;font-weight:600;margin-bottom:0px;'>{q_text}</p>",
+                        unsafe_allow_html=True,
+                    )
+                    ans = st.selectbox(
+                        q_text,
+                        options,
+                        index=default_idx,
+                        key=f"q_sel_{q_id}",
+                        label_visibility="collapsed",
+                    )
+                    new_user_questions[q_id] = None if ans == "-" else ans
+                    st.write("")
 
               submit_q = st.form_submit_button("Zusatzfragen speichern")
               if submit_q:
@@ -698,7 +755,6 @@ elif menu == "Admin-Bereich":
           schwinger_list.append(
               {"id": new_id, "name": clean_name, "verband": new_s_verband}
           )
-          # Nach dem Hinzufügen direkt alphabetisch sortieren nach Name
           schwinger_list = sorted(schwinger_list, key=lambda x: x["name"])
           save_data(SCHWINGER_FILE, schwinger_list)
           st.success(
@@ -823,9 +879,17 @@ elif menu == "Admin-Bereich":
             if q_type == "gang_count":
               options = ["-"] + [str(i) for i in range(1, 7)]
             elif q_type == "schwinger_verband" and q_verband:
-              options = ["-"] + sorted([
-                  s["name"] for s in schwinger_list if s["verband"] == q_verband
-              ])
+              if q_verband == "NOSV":
+                options = ["-"] + sorted([
+                    s["name"]
+                    for s in schwinger_list
+                    if s["verband"] == q_verband
+                    and not s["name"].startswith("Alpiger Nick")
+                ])
+              else:
+                options = ["-"] + sorted([
+                    s["name"] for s in schwinger_list if s["verband"] == q_verband
+                ])
             else:
               options = ["-"] + all_schwinger_names
 
