@@ -1467,6 +1467,12 @@ elif menu == "Admin-Bereich":
           if delete_clicked:
             participants_list.remove(selected_to_edit)
             save_data(PARTICIPANTS_FILE, participants_list)
+            # Teilnehmer vollständig aus dem Tippspiel entfernen.
+            # Die Rangliste basiert auf tips.json; deshalb muss beim Löschen
+            # auch der zugehörige Tipp-Datensatz entfernt werden.
+            if selected_to_edit in tips:
+              del tips[selected_to_edit]
+              save_data(TIPS_FILE, tips)
             st.success(f"Teilnehmer '{selected_to_edit}' wurde gelöscht.")
             st.rerun()
 
