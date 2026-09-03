@@ -13,8 +13,8 @@ SETTINGS_FILE = "settings.json"
 PARTICIPANTS_FILE = "participants.json"
 SCHWINGER_FILE = "schwinger.json"
 
-APP_VERSION = "v13"
-APP_BUILD = "03.09.2026 15:38"
+APP_VERSION = "v14"
+APP_BUILD = "03.09.2026 15:48"
 
 # --- OFFIZIELLE SCHWINGER-LISTE (Startliste ESV, Stand 30.08.2026) ---
 DEFAULT_SCHWINGER = [
@@ -592,14 +592,7 @@ st.markdown("""
 # Wichtig: Vorhandene Dateien haben immer Vorrang. Dadurch bleiben Tipps,
 # Resultate, Sperren und Einstellungen bei einem normalen Code-Update erhalten.
 pairings = load_data(PAIRINGS_FILE, copy.deepcopy(DEFAULT_PAIRINGS))
-if not pairings:
-  pairings = copy.deepcopy(DEFAULT_PAIRINGS)
-  save_data(PAIRINGS_FILE, pairings)
-
 questions = load_data(QUESTIONS_FILE, copy.deepcopy(DEFAULT_QUESTIONS))
-if not questions:
-  questions = copy.deepcopy(DEFAULT_QUESTIONS)
-  save_data(QUESTIONS_FILE, questions)
 
 participants_list = load_data(PARTICIPANTS_FILE, copy.deepcopy(DEFAULT_PARTICIPANTS))
 tips = load_data(TIPS_FILE, {})
@@ -617,14 +610,6 @@ for key, default_value in DEFAULT_SETTINGS.items():
 # Neue Unterfelder ebenfalls nur ergänzen, nie bestehende Punktwerte überschreiben.
 settings.setdefault("question_points", {})
 settings["question_points"].setdefault("q10", 0)
-
-# Neue Standardfragen verlustfrei ergänzen; vorhandene Fragen/Resultate nie überschreiben.
-existing_question_ids = {q.get("id") for q in questions}
-for default_q in DEFAULT_QUESTIONS:
-  if default_q.get("id") not in existing_question_ids:
-    questions.append(copy.deepcopy(default_q))
-    existing_question_ids.add(default_q.get("id"))
-    save_data(QUESTIONS_FILE, questions)
 
 # Einmalige verlustfreie Migration auf die aktuelle Datenversion.
 if existing_data_version < DEFAULT_SETTINGS["data_version"]:
@@ -1471,7 +1456,11 @@ elif menu == "Admin-Bereich":
           if s1 == s2:
             st.error("Ein Schwinger kann nicht gegen sich selbst antreten.")
           else:
-            new_id = str(len(pairings) + 1)
+            numeric_pairing_ids = [
+                int(p.get("id")) for p in pairings
+                if str(p.get("id", "")).isdigit()
+            ]
+            new_id = str(max(numeric_pairing_ids, default=0) + 1)
             pairings.append({
                 "id": new_id,
                 "gang": int(gang_nr),
@@ -1484,7 +1473,48 @@ elif menu == "Admin-Bereich":
             st.rerun()
 
       st.divider()
-      st.write("### 2. Gänge für Tippabgabe sperren (1. bis 6. Gang)")
+      st.write("### 2. Paarung löschen")
+      if not pairings:
+        st.info("Keine Paarungen vorhanden.")
+      else:
+        pairing_delete_options = {
+            f"{p['gang']}. Gang: {p['schwinget_1']} ⚔️ {p['schwinget_2']}": p["id"]
+            for p in sorted(pairings, key=lambda x: (x["gang"], str(x["id"])), reverse=True)
+        }
+        with st.form("delete_pairing_form"):
+          pairing_to_delete_label = st.selectbox(
+              "Paarung auswählen:", list(pairing_delete_options.keys())
+          )
+          confirm_pairing_delete = st.checkbox(
+              "Löschen bestätigen (zugehörige bereits abgegebene Tipps werden ebenfalls entfernt)"
+          )
+          delete_pairing_clicked = st.form_submit_button(
+              "Ausgewählte Paarung löschen",
+              disabled=not confirm_pairing_delete,
+          )
+
+          if delete_pairing_clicked:
+            pairing_id_to_delete = pairing_delete_options[pairing_to_delete_label]
+            pairings = [
+                p for p in pairings if str(p.get("id")) != str(pairing_id_to_delete)
+            ]
+            save_data(PAIRINGS_FILE, pairings)
+
+            # Zugehörige Tipps bei allen Teilnehmern entfernen, damit keine
+            # unsichtbaren Alt-Daten bestehen bleiben.
+            for entry in tips.values():
+              data = entry.get("data", {}) if isinstance(entry, dict) and "data" in entry else entry
+              if isinstance(data, dict):
+                user_pairings = data.get("pairings", {})
+                if isinstance(user_pairings, dict):
+                  user_pairings.pop(str(pairing_id_to_delete), None)
+            save_data(TIPS_FILE, tips)
+
+            st.success("Paarung und zugehörige Tipps wurden gelöscht.")
+            st.rerun()
+
+      st.divider()
+      st.write("### 3. Gänge für Tippabgabe sperren (1. bis 6. Gang)")
       locked_dict = settings.get("gang_locked", {})
       with st.form("lock_gangs_form"):
         new_locked_dict = {}
@@ -1554,6 +1584,50 @@ elif menu == "Admin-Bereich":
           save_data(SETTINGS_FILE, settings)
           st.success("Sperrstatus der Zusatzfragen aktualisiert!")
           st.rerun()
+
+      st.divider()
+      st.write("### Zusatzfrage löschen")
+      if not questions:
+        st.info("Keine Zusatzfragen vorhanden.")
+      else:
+        question_delete_options = {
+            f"{q['question']}": q["id"] for q in questions
+        }
+        with st.form("delete_question_form"):
+          question_to_delete_label = st.selectbox(
+              "Zusatzfrage auswählen:", list(question_delete_options.keys())
+          )
+          confirm_question_delete = st.checkbox(
+              "Löschen bestätigen (zugehörige bereits abgegebene Tipps werden ebenfalls entfernt)"
+          )
+          delete_question_clicked = st.form_submit_button(
+              "Ausgewählte Zusatzfrage löschen",
+              disabled=not confirm_question_delete,
+          )
+
+          if delete_question_clicked:
+            question_id_to_delete = question_delete_options[question_to_delete_label]
+            questions = [
+                q for q in questions if str(q.get("id")) != str(question_id_to_delete)
+            ]
+            save_data(QUESTIONS_FILE, questions)
+
+            # Punktkonfiguration der gelöschten Frage entfernen.
+            if isinstance(settings.get("question_points"), dict):
+              settings["question_points"].pop(str(question_id_to_delete), None)
+              save_data(SETTINGS_FILE, settings)
+
+            # Zugehörige Tipps bei allen Teilnehmern entfernen.
+            for entry in tips.values():
+              data = entry.get("data", {}) if isinstance(entry, dict) and "data" in entry else entry
+              if isinstance(data, dict):
+                user_questions = data.get("questions", {})
+                if isinstance(user_questions, dict):
+                  user_questions.pop(str(question_id_to_delete), None)
+            save_data(TIPS_FILE, tips)
+
+            st.success("Zusatzfrage und zugehörige Tipps wurden gelöscht.")
+            st.rerun()
 
       st.divider()
       st.write("### Richtige Antworten für Zusatzfragen eintragen")
@@ -1774,22 +1848,19 @@ elif menu == "Admin-Bereich":
           st.rerun()
 
       st.divider()
-      st.write("### ⚠️ Reset / Daten zurücksetzen")
+      st.write("### ⚠️ Tippspiel zurücksetzen")
       confirm_reset = st.checkbox(
-          "⚠️ Ja, ich bin absolut sicher, dass ich alle Daten und Einstellungen "
-          "(Tipps, Paarungen, Resultate, Fragen, Teilnehmer, Sperren und Punkte) "
-          "auf den Ausgangszustand zurücksetzen will."
+          "⚠️ Ja, ich bin absolut sicher, dass alle Teilnehmer und sämtliche "
+          "abgegebenen Tipps gelöscht werden sollen. Paarungen, Resultate, "
+          "Zusatzfragen und Einstellungen bleiben bestehen."
       )
-      if st.button("🔄 Alles zurücksetzen", disabled=not confirm_reset):
-        # Bewusster Komplett-Reset: alle Spiel- und Admin-Eingaben zurück auf
-        # den definierten Ausgangszustand. Erst dieser Button löscht Eingaben.
+      if st.button("🔄 Teilnehmer & Tipps löschen", disabled=not confirm_reset):
         save_data(TIPS_FILE, {})
-        save_data(PAIRINGS_FILE, copy.deepcopy(DEFAULT_PAIRINGS))
-        save_data(QUESTIONS_FILE, copy.deepcopy(DEFAULT_QUESTIONS))
-        save_data(SCHWINGER_FILE, copy.deepcopy(DEFAULT_SCHWINGER))
-        save_data(PARTICIPANTS_FILE, copy.deepcopy(DEFAULT_PARTICIPANTS))
-        save_data(SETTINGS_FILE, copy.deepcopy(DEFAULT_SETTINGS))
-        st.success("Alles vollständig auf den Ausgangszustand zurückgesetzt!")
+        save_data(PARTICIPANTS_FILE, [])
+        st.success(
+            "Alle Teilnehmer und Tipps wurden gelöscht. "
+            "Paarungen, Resultate, Zusatzfragen und Einstellungen bleiben bestehen."
+        )
         st.rerun()
 
       st.divider()
