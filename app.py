@@ -9,30 +9,30 @@ SETTINGS_FILE = "settings.json"
 PARTICIPANTS_FILE = "participants.json"
 SCHWINGER_FILE = "schwinger.json"
 
-# --- OFFIZELLE SCHWINGER-LISTE NACH VERBÄNDEN ---
+# --- OFFIZIELLE SCHWINGER-LISTE (Alphabetisch nach Nachname, Nick Alpiger auf NWSV korrigiert) ---
 DEFAULT_SCHWINGER = [
-    # BKSV
+    # BKSV (Bernisch-kantonaler Schwingerverband)
     {"id": 1, "name": "Aeschbacher Matthias ***", "verband": "BKSV"},
-    {"id": 2, "name": "Gasser Dominik **", "verband": "BKSV"},
-    {"id": 3, "name": "Kämpf Bernhard ***", "verband": "BKSV"},
-    {"id": 4, "name": "Ledermann Michael **", "verband": "BKSV"},
-    {"id": 5, "name": "Moser Michael ***", "verband": "BKSV"},
-    {"id": 6, "name": "Rutsch Remo **", "verband": "BKSV"},
-    {"id": 7, "name": "Schwander Severin **", "verband": "BKSV"},
-    {"id": 8, "name": "Staudenmann Fabian ***", "verband": "BKSV"},
-    {"id": 9, "name": "Trittibach Silvan *", "verband": "BKSV"},
-    {"id": 10, "name": "Walther Adrian ***", "verband": "BKSV"},
-    {"id": 11, "name": "Zaugg Lars **", "verband": "BKSV"},
-    {"id": 12, "name": "Scheuner Adrian *", "verband": "BKSV"},
-    {"id": 13, "name": "Scheuner David *", "verband": "BKSV"},
-    {"id": 14, "name": "Gobeli Patrick *", "verband": "BKSV"},
-    {"id": 15, "name": "Dubach Damian *", "verband": "BKSV"},
-    # ISV
+    {"id": 2, "name": "Dubach Damian *", "verband": "BKSV"},
+    {"id": 3, "name": "Gasser Dominik **", "verband": "BKSV"},
+    {"id": 4, "name": "Gobeli Patrick *", "verband": "BKSV"},
+    {"id": 5, "name": "Kämpf Bernhard ***", "verband": "BKSV"},
+    {"id": 6, "name": "Ledermann Michael **", "verband": "BKSV"},
+    {"id": 7, "name": "Moser Michael ***", "verband": "BKSV"},
+    {"id": 8, "name": "Rutsch Remo **", "verband": "BKSV"},
+    {"id": 9, "name": "Scheuner Adrian *", "verband": "BKSV"},
+    {"id": 10, "name": "Scheuner David *", "verband": "BKSV"},
+    {"id": 11, "name": "Schwander Severin **", "verband": "BKSV"},
+    {"id": 12, "name": "Staudenmann Fabian ***", "verband": "BKSV"},
+    {"id": 13, "name": "Trittibach Silvan *", "verband": "BKSV"},
+    {"id": 14, "name": "Walther Adrian ***", "verband": "BKSV"},
+    {"id": 15, "name": "Zaugg Lars **", "verband": "BKSV"},
+    # ISV (Innerschweizer Schwingerverband)
     {"id": 16, "name": "Ambühl Joel ***", "verband": "ISV"},
     {"id": 17, "name": "Appert Silvan *", "verband": "ISV"},
-    {"id": 18, "name": "Bissig Lukas ***", "verband": "ISV"},
+    {"id": 18, "name": "Bieri Marcel ***", "verband": "ISV"},
     {"id": 19, "name": "Bissig Luc *", "verband": "ISV"},
-    {"id": 20, "name": "Bieri Marcel ***", "verband": "ISV"},
+    {"id": 20, "name": "Bissig Lukas ***", "verband": "ISV"},
     {"id": 21, "name": "Bruhin Fredi *", "verband": "ISV"},
     {"id": 22, "name": "Bucher Christian *", "verband": "ISV"},
     {"id": 23, "name": "Doppmann Urs *", "verband": "ISV"},
@@ -44,15 +44,15 @@ DEFAULT_SCHWINGER = [
     {"id": 29, "name": "Schönbächler Martin *", "verband": "ISV"},
     {"id": 30, "name": "Schwyzer Samuel **", "verband": "ISV"},
     {"id": 31, "name": "Zemp Christian *", "verband": "ISV"},
-    # NOSV
-    {"id": 32, "name": "Alpiger Nick ***", "verband": "NOSV"},
-    {"id": 33, "name": "Bachmann Janos *", "verband": "NOSV"},
-    {"id": 34, "name": "Biäsch Christian *", "verband": "NOSV"},
-    {"id": 35, "name": "Bösch Mario **", "verband": "NOSV"},
-    {"id": 36, "name": "Giger Samuel ***", "verband": "NOSV"},
-    {"id": 37, "name": "Good Marco *", "verband": "NOSV"},
-    {"id": 38, "name": "Kindlimann Fabian ***", "verband": "NOSV"},
-    {"id": 39, "name": "Müller Josias *", "verband": "NOSV"},
+    # NOSV (Nordostschweizer Schwingerverband)
+    {"id": 32, "name": "Bachmann Janos *", "verband": "NOSV"},
+    {"id": 33, "name": "Biäsch Christian *", "verband": "NOSV"},
+    {"id": 34, "name": "Bösch Mario **", "verband": "NOSV"},
+    {"id": 35, "name": "Giger Samuel ***", "verband": "NOSV"},
+    {"id": 36, "name": "Good Marco *", "verband": "NOSV"},
+    {"id": 37, "name": "Kindlimann Fabian ***", "verband": "NOSV"},
+    {"id": 38, "name": "Müller Josias *", "verband": "NOSV"},
+    {"id": 39, "name": "Oettli Silvio **", "verband": "NOSV"},
     {"id": 40, "name": "Orlik Armon ***", "verband": "NOSV"},
     {"id": 41, "name": "Ott Damian ***", "verband": "NOSV"},
     {"id": 42, "name": "Roth Martin **", "verband": "NOSV"},
@@ -60,17 +60,17 @@ DEFAULT_SCHWINGER = [
     {"id": 44, "name": "Schneider Domenic ***", "verband": "NOSV"},
     {"id": 45, "name": "Schneider Mario **", "verband": "NOSV"},
     {"id": 46, "name": "Signer Andy **", "verband": "NOSV"},
-    {"id": 47, "name": "Oettli Silvio **", "verband": "NOSV"},
-    # NWSV
-    {"id": 48, "name": "Frank Marius **", "verband": "NWSV"},
-    {"id": 49, "name": "Glutz Jonas *", "verband": "NWSV"},
-    {"id": 50, "name": "Odermatt Adrian **", "verband": "NWSV"},
-    {"id": 51, "name": "Strebel Joel ***", "verband": "NWSV"},
-    {"id": 52, "name": "Döbeli Andreas ***", "verband": "NWSV"},
-    {"id": 53, "name": "Voggensperger Lars **", "verband": "NWSV"},
-    {"id": 54, "name": "Hermann Oliver *", "verband": "NWSV"},
-    {"id": 55, "name": "Scherz Valentin *", "verband": "NWSV"},
-    # SWSV
+    # NWSV (Nordwestschweizer Schwingerverband inkl. Nick Alpiger)
+    {"id": 47, "name": "Alpiger Nick ***", "verband": "NWSV"},
+    {"id": 48, "name": "Döbeli Andreas ***", "verband": "NWSV"},
+    {"id": 49, "name": "Frank Marius **", "verband": "NWSV"},
+    {"id": 50, "name": "Glutz Jonas *", "verband": "NWSV"},
+    {"id": 51, "name": "Hermann Oliver *", "verband": "NWSV"},
+    {"id": 52, "name": "Odermatt Adrian **", "verband": "NWSV"},
+    {"id": 53, "name": "Scherz Valentin *", "verband": "NWSV"},
+    {"id": 54, "name": "Strebel Joel ***", "verband": "NWSV"},
+    {"id": 55, "name": "Voggensperger Lars **", "verband": "NWSV"},
+    # SWSV (Südwestschweizer Schwingerverband)
     {"id": 56, "name": "Borcard Johann *", "verband": "SWSV"},
     {"id": 57, "name": "Collaud Romain ***", "verband": "SWSV"},
     {"id": 58, "name": "Kramer Lario ***", "verband": "SWSV"},
@@ -242,7 +242,7 @@ st.set_page_config(
 
 st.title("🏆 Tippspiel Kilchberger Schwinget")
 
-# Daten laden mit Fallback auf Defaults
+# Daten laden
 schwinger_list = load_data(SCHWINGER_FILE, DEFAULT_SCHWINGER)
 if not schwinger_list:
   schwinger_list = DEFAULT_SCHWINGER
@@ -286,7 +286,7 @@ settings = load_data(
     },
 )
 
-# Hilfslisten für Dropdowns
+# Hilfslisten für Dropdowns (alphabetisch sortiert nach Nachname-Vorname, da die Liste so aufgebaut ist)
 all_schwinger_names = sorted([s["name"] for s in schwinger_list])
 
 # Hauptnavigation
@@ -472,6 +472,7 @@ if menu == "Tippspiel":
                 if q_type == "gang_count":
                   options = ["-"] + [str(i) for i in range(1, 7)]
                 elif q_type == "schwinger_verband" and q_verband:
+                  # Nur Schwinger des jeweiligen Verbandes (bereits alphabetisch sortiert)
                   options = ["-"] + sorted([
                       s["name"]
                       for s in schwinger_list
@@ -675,7 +676,7 @@ elif menu == "Admin-Bereich":
         "Einstellungen & Punkte",
     ])
 
-    # --- NEUES REGISTER 1: SCHWINGER-VERWALTUNG ---
+    # --- REGISTER 1: SCHWINGER-VERWALTUNG ---
     with tab1:
       st.write("### 🤼 Offizielle Schwinger-Liste verwalten")
       st.write(
@@ -686,7 +687,7 @@ elif menu == "Admin-Bereich":
       with st.form("add_schwinger_form"):
         st.write("#### Neuen Schwinger erfassen")
         new_s_name = st.text_input(
-            "Name und Sterne (z.B. Muster Hans ***):"
+            "Name und Sterne (Nachname Vorname ***):"
         )
         new_s_verband = st.selectbox(
             "Teilverband:", ["BKSV", "ISV", "NOSV", "NWSV", "SWSV"]
@@ -697,6 +698,8 @@ elif menu == "Admin-Bereich":
           schwinger_list.append(
               {"id": new_id, "name": clean_name, "verband": new_s_verband}
           )
+          # Nach dem Hinzufügen direkt alphabetisch sortieren nach Name
+          schwinger_list = sorted(schwinger_list, key=lambda x: x["name"])
           save_data(SCHWINGER_FILE, schwinger_list)
           st.success(
               f"Schwinger '{clean_name}' ({new_s_verband}) hinzugefügt!"
