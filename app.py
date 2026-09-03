@@ -13,8 +13,8 @@ SETTINGS_FILE = "settings.json"
 PARTICIPANTS_FILE = "participants.json"
 SCHWINGER_FILE = "schwinger.json"
 
-APP_VERSION = "v8"
-APP_BUILD = "03.09.2026 13:38"
+APP_VERSION = "v9.1"
+APP_BUILD = "03.09.2026 11:43"
 
 # --- OFFIZIELLE SCHWINGER-LISTE (Startliste ESV, Stand 30.08.2026) ---
 DEFAULT_SCHWINGER = [
@@ -419,36 +419,36 @@ st.markdown("""
 <style>
 /* Paarungsstatistik: jede Tippoption ist eine eigene kompakte Gruppe. */
 .pair-grid {
-  display:grid; grid-template-columns:minmax(0,1fr) 94px minmax(0,1fr);
-  column-gap:18px; align-items:center; font-size:.82rem; line-height:1.3; margin:0 0 7px 0; color:#222;
+  display:grid; grid-template-columns:minmax(0,1fr) 88px minmax(0,1fr);
+  column-gap:12px; align-items:center; font-size:.82rem; line-height:1.22; margin:0 0 4px 0; color:#222;
 }
-.pair-choice {display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:8px; align-items:center; min-width:0;}
+.pair-choice {display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:3px; align-items:center; min-width:0;}
 .pair-choice.center {grid-template-columns:auto auto; justify-content:center;}
 .pair-choice .pct {white-space:nowrap; text-align:right; font-weight:700;}
 
 /* Spieler-Tipps: Zeichen steht direkt beim zugehörigen Schwinger. */
 .tip-grid {
-  display:grid; grid-template-columns:20px minmax(0,1fr) minmax(0,1fr) 46px;
-  column-gap:12px; align-items:center; font-size:.88rem; line-height:1.3; margin:0 0 6px 6px;
+  display:grid; grid-template-columns:20px minmax(0,1fr) minmax(0,1fr) 42px;
+  column-gap:7px; align-items:center; font-size:.88rem; line-height:1.22; margin:0 0 3px 4px;
 }
 .tip-choice {display:grid; grid-template-columns:minmax(0,1fr) 20px; column-gap:5px; align-items:center; min-width:0;}
 .tip-grid .mark,.tip-grid .sym,.tip-grid .pts {white-space:nowrap;}
 .tip-grid .pts{text-align:right;}
 
 /* Fragen: Resultat bewusst nahe bei der Nennung statt am rechten Fensterrand. */
-.q-grid {display:grid; grid-template-columns:minmax(150px,300px) auto; column-gap:18px; align-items:start; width:fit-content; max-width:100%; font-size:.82rem; line-height:1.3; margin:0 0 6px 0; color:#222;}
+.q-grid {display:grid; grid-template-columns:minmax(150px,300px) auto; column-gap:12px; align-items:start; width:fit-content; max-width:100%; font-size:.82rem; line-height:1.22; margin:0 0 4px 0; color:#222;}
 .q-grid .count{white-space:nowrap; font-weight:700;}
-.qtip-grid {display:grid; grid-template-columns:20px minmax(180px,320px) minmax(100px,220px) 48px; column-gap:12px; align-items:start; width:fit-content; max-width:100%; font-size:.88rem; line-height:1.3; margin:0 0 7px 6px;}
+.qtip-grid {display:grid; grid-template-columns:20px minmax(180px,320px) minmax(100px,220px) 48px; column-gap:8px; align-items:start; width:fit-content; max-width:100%; font-size:.88rem; line-height:1.22; margin:0 0 4px 4px;}
 .qtip-grid .pts{text-align:right; white-space:nowrap;}
 
 @media (max-width: 520px) {
-  .pair-grid {grid-template-columns:minmax(0,1fr) 68px minmax(0,1fr); column-gap:7px; font-size:.70rem;}
+  .pair-grid {grid-template-columns:minmax(0,1fr) 64px minmax(0,1fr); column-gap:5px; font-size:.70rem;}
   .pair-choice {column-gap:4px;}
   .pair-choice.center {grid-template-columns:auto auto; column-gap:3px;}
-  .tip-grid {grid-template-columns:16px minmax(0,1fr) minmax(0,1fr) 38px; column-gap:5px; font-size:.74rem; margin-left:0;}
+  .tip-grid {grid-template-columns:16px minmax(0,1fr) minmax(0,1fr) 34px; column-gap:3px; font-size:.74rem; margin-left:0;}
   .tip-choice {grid-template-columns:minmax(0,1fr) 16px; column-gap:2px;}
-  .q-grid {grid-template-columns:minmax(120px,1fr) auto; column-gap:12px; width:100%; font-size:.76rem;}
-  .qtip-grid {grid-template-columns:16px minmax(0,1fr) minmax(80px,.75fr) 40px; column-gap:5px; width:100%; font-size:.74rem; margin-left:0;}
+  .q-grid {grid-template-columns:minmax(120px,1fr) auto; column-gap:8px; width:100%; font-size:.76rem;}
+  .qtip-grid {grid-template-columns:16px minmax(0,1fr) minmax(80px,.75fr) 40px; column-gap:4px; width:100%; font-size:.74rem; margin-left:0;}
 }
 </style>
 """, unsafe_allow_html=True)
