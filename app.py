@@ -7,31 +7,77 @@ TIPS_FILE = "tips.json"
 QUESTIONS_FILE = "questions.json"
 SETTINGS_FILE = "settings.json"
 PARTICIPANTS_FILE = "participants.json"
+SCHWINGER_FILE = "schwinger.json"
 
-# --- ZENTRALE SCHWINGER-LISTE (ALLE SCHWINGER MIT STERNEN) ---
-ALL_SCHWINGER = [
-    "Aeschbacher Matthias ***",
-    "Alpiger Nick ***",
-    "Bieri Marcel ***",
-    "Bissig Lukas ***",
-    "Burger Matthieu ***",
-    "Collaud Romain ***",
-    "Giger Samuel ***",
-    "Gwerder Michael ***",
-    "Kramer Lario ***",
-    "Lüscher Sinisha ***",
-    "Lustenberger Marc ***",
-    "Moser Michael ***",
-    "Orlik Armon ***",
-    "Schlegel Werner ***",
-    "Staudenmann Fabian ***",
-    "Strebel Joel ***",
-    "Ott Damian ***",
-    "Zaugg Lars **",
-    "Schwyzer Samuel **",
+# --- OFFIZELLE SCHWINGER-LISTE NACH VERBÄNDEN ---
+DEFAULT_SCHWINGER = [
+    # BKSV
+    {"id": 1, "name": "Aeschbacher Matthias ***", "verband": "BKSV"},
+    {"id": 2, "name": "Gasser Dominik **", "verband": "BKSV"},
+    {"id": 3, "name": "Kämpf Bernhard ***", "verband": "BKSV"},
+    {"id": 4, "name": "Ledermann Michael **", "verband": "BKSV"},
+    {"id": 5, "name": "Moser Michael ***", "verband": "BKSV"},
+    {"id": 6, "name": "Rutsch Remo **", "verband": "BKSV"},
+    {"id": 7, "name": "Schwander Severin **", "verband": "BKSV"},
+    {"id": 8, "name": "Staudenmann Fabian ***", "verband": "BKSV"},
+    {"id": 9, "name": "Trittibach Silvan *", "verband": "BKSV"},
+    {"id": 10, "name": "Walther Adrian ***", "verband": "BKSV"},
+    {"id": 11, "name": "Zaugg Lars **", "verband": "BKSV"},
+    {"id": 12, "name": "Scheuner Adrian *", "verband": "BKSV"},
+    {"id": 13, "name": "Scheuner David *", "verband": "BKSV"},
+    {"id": 14, "name": "Gobeli Patrick *", "verband": "BKSV"},
+    {"id": 15, "name": "Dubach Damian *", "verband": "BKSV"},
+    # ISV
+    {"id": 16, "name": "Ambühl Joel ***", "verband": "ISV"},
+    {"id": 17, "name": "Appert Silvan *", "verband": "ISV"},
+    {"id": 18, "name": "Bissig Lukas ***", "verband": "ISV"},
+    {"id": 19, "name": "Bissig Luc *", "verband": "ISV"},
+    {"id": 20, "name": "Bieri Marcel ***", "verband": "ISV"},
+    {"id": 21, "name": "Bruhin Fredi *", "verband": "ISV"},
+    {"id": 22, "name": "Bucher Christian *", "verband": "ISV"},
+    {"id": 23, "name": "Doppmann Urs *", "verband": "ISV"},
+    {"id": 24, "name": "Gwerder Michael ***", "verband": "ISV"},
+    {"id": 25, "name": "Heinzer Lukas *", "verband": "ISV"},
+    {"id": 26, "name": "Lang Sven *", "verband": "ISV"},
+    {"id": 27, "name": "Lustenberger Marc ***", "verband": "ISV"},
+    {"id": 28, "name": "Reichmuth Roland *", "verband": "ISV"},
+    {"id": 29, "name": "Schönbächler Martin *", "verband": "ISV"},
+    {"id": 30, "name": "Schwyzer Samuel **", "verband": "ISV"},
+    {"id": 31, "name": "Zemp Christian *", "verband": "ISV"},
+    # NOSV
+    {"id": 32, "name": "Alpiger Nick ***", "verband": "NOSV"},
+    {"id": 33, "name": "Bachmann Janos *", "verband": "NOSV"},
+    {"id": 34, "name": "Biäsch Christian *", "verband": "NOSV"},
+    {"id": 35, "name": "Bösch Mario **", "verband": "NOSV"},
+    {"id": 36, "name": "Giger Samuel ***", "verband": "NOSV"},
+    {"id": 37, "name": "Good Marco *", "verband": "NOSV"},
+    {"id": 38, "name": "Kindlimann Fabian ***", "verband": "NOSV"},
+    {"id": 39, "name": "Müller Josias *", "verband": "NOSV"},
+    {"id": 40, "name": "Orlik Armon ***", "verband": "NOSV"},
+    {"id": 41, "name": "Ott Damian ***", "verband": "NOSV"},
+    {"id": 42, "name": "Roth Martin **", "verband": "NOSV"},
+    {"id": 43, "name": "Schlegel Werner ***", "verband": "NOSV"},
+    {"id": 44, "name": "Schneider Domenic ***", "verband": "NOSV"},
+    {"id": 45, "name": "Schneider Mario **", "verband": "NOSV"},
+    {"id": 46, "name": "Signer Andy **", "verband": "NOSV"},
+    {"id": 47, "name": "Oettli Silvio **", "verband": "NOSV"},
+    # NWSV
+    {"id": 48, "name": "Frank Marius **", "verband": "NWSV"},
+    {"id": 49, "name": "Glutz Jonas *", "verband": "NWSV"},
+    {"id": 50, "name": "Odermatt Adrian **", "verband": "NWSV"},
+    {"id": 51, "name": "Strebel Joel ***", "verband": "NWSV"},
+    {"id": 52, "name": "Döbeli Andreas ***", "verband": "NWSV"},
+    {"id": 53, "name": "Voggensperger Lars **", "verband": "NWSV"},
+    {"id": 54, "name": "Hermann Oliver *", "verband": "NWSV"},
+    {"id": 55, "name": "Scherz Valentin *", "verband": "NWSV"},
+    # SWSV
+    {"id": 56, "name": "Borcard Johann *", "verband": "SWSV"},
+    {"id": 57, "name": "Collaud Romain ***", "verband": "SWSV"},
+    {"id": 58, "name": "Kramer Lario ***", "verband": "SWSV"},
+    {"id": 59, "name": "Tornare Laurent *", "verband": "SWSV"},
+    {"id": 60, "name": "Tornare Paul *", "verband": "SWSV"},
 ]
 
-# --- FEST DEFINIERTE STANDARD-PAARUNGEN (1. GANG) ---
 DEFAULT_PAIRINGS = [
     {
         "id": "1",
@@ -58,7 +104,7 @@ DEFAULT_PAIRINGS = [
         "id": "4",
         "gang": 1,
         "schwinget_1": "Gwerder Michael ***",
-        "schwinget_2": "Lüscher Sinisha ***",
+        "schwinget_2": "Lüscher Sinisha *",
         "result": None,
     },
     {
@@ -71,7 +117,7 @@ DEFAULT_PAIRINGS = [
     {
         "id": "6",
         "gang": 1,
-        "schwinget_1": "Burger Matthieu ***",
+        "schwinget_1": "Burger Matthieu *",
         "schwinget_2": "Lustenberger Marc ***",
         "result": None,
     },
@@ -105,7 +151,6 @@ DEFAULT_PAIRINGS = [
     },
 ]
 
-# --- FEST DEFINIERTE ZUSATZFRAGEN ---
 DEFAULT_QUESTIONS = [
     {
         "id": "q1",
@@ -116,13 +161,13 @@ DEFAULT_QUESTIONS = [
     {
         "id": "q2",
         "question": "Schlussgangteilnehmer 1",
-        "type": "schwinger",
+        "type": "schwinger_all",
         "result": None,
     },
     {
         "id": "q3",
         "question": "Schlussgangteilnehmer 2",
-        "type": "schwinger",
+        "type": "schwinger_all",
         "result": None,
     },
     {
@@ -131,40 +176,47 @@ DEFAULT_QUESTIONS = [
             "Wer wird Festsieger? (bei mehreren Siegern gilt der Erstplatzierte"
             " 1a)"
         ),
-        "type": "schwinger",
+        "type": "schwinger_all",
         "result": None,
     },
     {
         "id": "q5",
         "question": "Bester Schwinger NOS",
-        "type": "schwinger",
+        "type": "schwinger_verband",
+        "verband": "NOSV",
         "result": None,
     },
     {
         "id": "q6",
         "question": "Bester Schwinger BKSV",
-        "type": "schwinger",
+        "type": "schwinger_verband",
+        "verband": "BKSV",
         "result": None,
     },
     {
         "id": "q7",
         "question": "Bester Schwinger ISV",
-        "type": "schwinger",
+        "type": "schwinger_verband",
+        "verband": "ISV",
         "result": None,
     },
     {
         "id": "q8",
         "question": "Bester Schwinger NWSV",
-        "type": "schwinger",
+        "type": "schwinger_verband",
+        "verband": "NWSV",
         "result": None,
     },
     {
         "id": "q9",
         "question": "Bester Schwinger SWSV",
-        "type": "schwinger",
+        "type": "schwinger_verband",
+        "verband": "SWSV",
         "result": None,
     },
 ]
+
+DEFAULT_PARTICIPANTS = ["Dummies Standard 1", "Dummies Standard 2"]
 
 
 def load_data(file_path, default):
@@ -190,7 +242,12 @@ st.set_page_config(
 
 st.title("🏆 Tippspiel Kilchberger Schwinget")
 
-# Daten laden
+# Daten laden mit Fallback auf Defaults
+schwinger_list = load_data(SCHWINGER_FILE, DEFAULT_SCHWINGER)
+if not schwinger_list:
+  schwinger_list = DEFAULT_SCHWINGER
+  save_data(SCHWINGER_FILE, schwinger_list)
+
 pairings = load_data(PAIRINGS_FILE, DEFAULT_PAIRINGS)
 if not pairings:
   pairings = DEFAULT_PAIRINGS
@@ -201,8 +258,12 @@ if not questions:
   questions = DEFAULT_QUESTIONS
   save_data(QUESTIONS_FILE, questions)
 
+participants_list = load_data(PARTICIPANTS_FILE, DEFAULT_PARTICIPANTS)
+if not participants_list:
+  participants_list = DEFAULT_PARTICIPANTS
+  save_data(PARTICIPANTS_FILE, participants_list)
+
 tips = load_data(TIPS_FILE, {})
-participants_list = load_data(PARTICIPANTS_FILE, [])
 settings = load_data(
     SETTINGS_FILE,
     {
@@ -225,6 +286,9 @@ settings = load_data(
     },
 )
 
+# Hilfslisten für Dropdowns
+all_schwinger_names = sorted([s["name"] for s in schwinger_list])
+
 # Hauptnavigation
 menu = st.sidebar.selectbox("Navigation", ["Tippspiel", "Admin-Bereich"])
 
@@ -237,7 +301,6 @@ if menu == "Tippspiel":
     st.write("")
 
     participant_name = ""
-
     if participants_list:
       name_options = (
           ["-- Bitte wählen --", "+ Name erfassen"] + sorted(participants_list)
@@ -320,7 +383,6 @@ if menu == "Tippspiel":
             type="password",
             key=f"login_pin_{clean_name}",
         )
-
         stored_pin = user_entry.get("pin")
         if entered_pin == stored_pin:
           access_granted = True
@@ -332,7 +394,6 @@ if menu == "Tippspiel":
         st.write("")
 
         user_data = user_entry.get("data", {"pairings": {}, "questions": {}})
-
         sub_tab_p, sub_tab_q = st.tabs(["Gänge / Paarungen", "Zusatzfragen"])
 
         with sub_tab_p:
@@ -385,7 +446,6 @@ if menu == "Tippspiel":
                     new_user_pairings[p_id] = tip
                     st.write("")
 
-              st.write("")
               submit_p = st.form_submit_button("Paarung-Tipps speichern")
               if submit_p:
                 user_data["pairings"] = new_user_pairings
@@ -405,35 +465,30 @@ if menu == "Tippspiel":
               for q in questions:
                 q_id = q["id"]
                 q_text = q["question"]
-                q_type = q.get("type", "schwinger")
+                q_type = q.get("type", "schwinger_all")
+                q_verband = q.get("verband", None)
                 default_ans = new_user_questions.get(q_id, "")
 
                 if q_type == "gang_count":
-                  gang_options = ["-"] + [str(i) for i in range(1, 7)]
-                  default_idx = (
-                      gang_options.index(default_ans)
-                      if default_ans in gang_options
-                      else 0
-                  )
-                  ans = st.selectbox(
-                      q_text, gang_options, index=default_idx, key=f"q_sel_{q_id}"
-                  )
-                  new_user_questions[q_id] = None if ans == "-" else ans
-                else:
-                  schwinger_options = ["-"] + sorted(ALL_SCHWINGER)
-                  default_idx = (
-                      schwinger_options.index(default_ans)
-                      if default_ans in schwinger_options
-                      else 0
-                  )
-                  ans = st.selectbox(
-                      q_text,
-                      schwinger_options,
-                      index=default_idx,
-                      key=f"q_sel_{q_id}",
-                  )
-                  new_user_questions[q_id] = None if ans == "-" else ans
+                  options = ["-"] + [str(i) for i in range(1, 7)]
+                elif q_type == "schwinger_verband" and q_verband:
+                  options = ["-"] + sorted([
+                      s["name"]
+                      for s in schwinger_list
+                      if s["verband"] == q_verband
+                  ])
+                else:  # schwinger_all
+                  options = ["-"] + all_schwinger_names
 
+                default_idx = (
+                    options.index(default_ans)
+                    if default_ans in options
+                    else 0
+                )
+                ans = st.selectbox(
+                    q_text, options, index=default_idx, key=f"q_sel_{q_id}"
+                )
+                new_user_questions[q_id] = None if ans == "-" else ans
                 st.write("")
 
               submit_q = st.form_submit_button("Zusatzfragen speichern")
@@ -467,16 +522,15 @@ if menu == "Tippspiel":
 
       user_stats = {}
       for name, entry_val in tips.items():
-        if isinstance(entry_val, dict) and "data" in entry_val:
-          data = entry_val["data"]
-        else:
-          data = entry_val
-
+        data = (
+            entry_val["data"]
+            if isinstance(entry_val, dict) and "data" in entry_val
+            else entry_val
+        )
         user_p_tips = data.get("pairings", {})
         user_q_tips = data.get("questions", {})
 
         p_points_total = 0
-        q_points_total = 0
         gang_points_map = {}
         q_points_val = 0
 
@@ -502,11 +556,10 @@ if menu == "Tippspiel":
             correct_ans = str(q.get("result", "")).strip().lower()
             if user_ans and user_ans == correct_ans:
               q_points_val += q_points_config.get(q_id, 2)
-        q_points_total = q_points_val
 
         user_stats[name] = {
             "gang_points_map": gang_points_map,
-            "q_points": q_points_total,
+            "q_points": q_points_val,
             "p_points": p_points_total,
             "bonus_p": 0,
             "bonus_q": 0,
@@ -514,10 +567,7 @@ if menu == "Tippspiel":
 
       existing_gangs = set(p["gang"] for p in pairings)
       for g in existing_gangs:
-        gang_has_results = any(
-            p.get("result") for p in pairings if p["gang"] == g
-        )
-        if gang_has_results:
+        if any(p.get("result") for p in pairings if p["gang"] == g):
           max_g_pts = -1
           leaders = []
           for name, stats in user_stats.items():
@@ -527,13 +577,11 @@ if menu == "Tippspiel":
               leaders = [name]
             elif pts == max_g_pts:
               leaders.append(name)
-
           if max_g_pts > 0:
             for leader in leaders:
               user_stats[leader]["bonus_p"] += bonus_p_val
 
-      questions_has_results = any(q.get("result") for q in questions)
-      if questions_has_results and questions:
+      if any(q.get("result") for q in questions) and questions:
         max_q_pts = -1
         q_leaders = []
         for name, stats in user_stats.items():
@@ -543,7 +591,6 @@ if menu == "Tippspiel":
             q_leaders = [name]
           elif pts == max_q_pts:
             q_leaders.append(name)
-
         if max_q_pts > 0:
           for leader in q_leaders:
             user_stats[leader]["bonus_q"] += bonus_q_val
@@ -572,25 +619,24 @@ if menu == "Tippspiel":
         if i > 0 and entry["Total"] < scores[i - 1]["Total"]:
           current_rank = i + 1
 
-        if current_rank == 1:
-          rank_display = "🥇"
-        elif current_rank == 2:
-          rank_display = "🥈"
-        elif current_rank == 3:
-          rank_display = "🥉"
-        else:
-          rank_display = f"#{current_rank}"
+        rank_display = (
+            "🥇"
+            if current_rank == 1
+            else "🥈"
+            if current_rank == 2
+            else "🥉"
+            if current_rank == 3
+            else f"#{current_rank}"
+        )
 
         with st.container(border=True):
           col1, col2, col3 = st.columns([1.2, 3.8, 2])
-
           with col1:
             st.markdown(
                 f"<div style='font-size: 1.2rem; font-weight: bold; text-align:"
                 f" center; padding-top: 6px;'>{rank_display}</div>",
                 unsafe_allow_html=True,
             )
-
           with col2:
             st.markdown(
                 f"<div style='font-size: 1rem; font-weight: bold; margin: 0;"
@@ -603,7 +649,6 @@ if menu == "Tippspiel":
                 f" {entry['Fragen']} (+{entry['Bonus Fragen']}B)</div>",
                 unsafe_allow_html=True,
             )
-
           with col3:
             st.markdown(
                 f"<div style='text-align: right;'><span"
@@ -620,23 +665,79 @@ elif menu == "Admin-Bereich":
   if admin_pw == settings.get("admin_pw", "schwingen2026"):
     st.success("Admin-Zugriff aktiv.")
 
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+        "Schwinger-Liste",
         "Paarungen & Gänge sperren",
         "Resultate Eintragen",
         "Zusatzfragen",
-        "Tippspiel-Teilnehmer",
+        "Tippspiel-Teilnehmer / Dummies",
         "Wer hat gespielt?",
         "Einstellungen & Punkte",
     ])
 
+    # --- NEUES REGISTER 1: SCHWINGER-VERWALTUNG ---
     with tab1:
+      st.write("### 🤼 Offizielle Schwinger-Liste verwalten")
+      st.write(
+          "Hier kannst du einzelne Schwinger hinzufügen, löschen oder die"
+          " komplette Liste auf den offiziellen Standard zurücksetzen."
+      )
+
+      with st.form("add_schwinger_form"):
+        st.write("#### Neuen Schwinger erfassen")
+        new_s_name = st.text_input(
+            "Name und Sterne (z.B. Muster Hans ***):"
+        )
+        new_s_verband = st.selectbox(
+            "Teilverband:", ["BKSV", "ISV", "NOSV", "NWSV", "SWSV"]
+        )
+        if st.form_submit_button("Schwinger hinzufügen") and new_s_name:
+          clean_name = new_s_name.strip()
+          new_id = max([s["id"] for s in schwinger_list], default=0) + 1
+          schwinger_list.append(
+              {"id": new_id, "name": clean_name, "verband": new_s_verband}
+          )
+          save_data(SCHWINGER_FILE, schwinger_list)
+          st.success(
+              f"Schwinger '{clean_name}' ({new_s_verband}) hinzugefügt!"
+          )
+          st.rerun()
+
+      st.divider()
+      st.write("#### Bestehende Schwinger bearbeiten / löschen")
+      if schwinger_list:
+        with st.form("delete_schwinger_form"):
+          schwinger_options = {
+              f"{s['name']} ({s['verband']})": s["id"] for s in schwinger_list
+          }
+          selected_to_delete_label = st.selectbox(
+              "Schwinger auswählen zum Löschen:", list(schwinger_options.keys())
+          )
+          if st.form_submit_button("Ausgewählten Schwinger löschen"):
+            target_id = schwinger_options[selected_to_delete_label]
+            schwinger_list = [s for s in schwinger_list if s["id"] != target_id]
+            save_data(SCHWINGER_FILE, schwinger_list)
+            st.success("Schwinger erfolgreich gelöscht.")
+            st.rerun()
+
+      st.divider()
+      if st.button("🔄 Offizielle Kilchberger-Standardliste wiederherstellen"):
+        save_data(SCHWINGER_FILE, DEFAULT_SCHWINGER)
+        st.success("Offizielle Startliste wurde zurückgesetzt!")
+        st.rerun()
+
+    with tab2:
       st.write("### 1. Neue Paarung erfassen")
       with st.form("add_pairing"):
         gang_nr = st.number_input(
             "Gang-Nummer", min_value=1, max_value=8, value=1
         )
-        s1 = st.selectbox("1. Schwinger", sorted(ALL_SCHWINGER), key="admin_s1")
-        s2 = st.selectbox("2. Schwinger", sorted(ALL_SCHWINGER), key="admin_s2")
+        s1 = st.selectbox(
+            "1. Schwinger", sorted(all_schwinger_names), key="admin_s1"
+        )
+        s2 = st.selectbox(
+            "2. Schwinger", sorted(all_schwinger_names), key="admin_s2"
+        )
         if st.form_submit_button("Paarung hinzufügen"):
           if s1 == s2:
             st.error("Ein Schwinger kann nicht gegen sich selbst antreten.")
@@ -669,14 +770,13 @@ elif menu == "Admin-Bereich":
                 value=current_state,
                 key=f"lock_g_{g}",
             )
-
           if st.form_submit_button("Sperr-Status speichern"):
             settings["gang_locked"] = new_locked_dict
             save_data(SETTINGS_FILE, settings)
             st.success("Sperrungen aktualisiert!")
             st.rerun()
 
-    with tab2:
+    with tab3:
       st.write("### Resultate für Paarungen eintragen")
       if not pairings:
         st.info("Keine Paarungen vorhanden.")
@@ -688,14 +788,12 @@ elif menu == "Admin-Bereich":
             s2 = p["schwinget_2"]
             p_title = f"Gang {p['gang']}: {s1}  ⚔️  {s2}"
             current_res = p.get("result")
-
             res_options = ["-", s1, "Gestellt", s2]
             default_idx = (
                 res_options.index(current_res)
                 if current_res in res_options
                 else 0
             )
-
             selected_res = st.selectbox(
                 p_title, res_options, index=default_idx, key=f"res_{p_id}"
             )
@@ -706,7 +804,7 @@ elif menu == "Admin-Bereich":
             st.success("Resultate aktualisiert!")
             st.rerun()
 
-    with tab3:
+    with tab4:
       st.write("### Richtige Antworten für Zusatzfragen eintragen")
       if not questions:
         st.info("Noch keine Zusatzfragen erfasst.")
@@ -715,55 +813,47 @@ elif menu == "Admin-Bereich":
           for q in questions:
             q_id = q["id"]
             q_text = q["question"]
-            q_type = q.get("type", "schwinger")
+            q_type = q.get("type", "schwinger_all")
+            q_verband = q.get("verband", None)
             current_res = q.get("result", "")
 
             if q_type == "gang_count":
-              gang_options = ["-"] + [str(i) for i in range(1, 7)]
-              default_idx = (
-                  gang_options.index(current_res)
-                  if current_res in gang_options
-                  else 0
-              )
-              selected_res = st.selectbox(
-                  f"Antwort für: '{q_text}'",
-                  gang_options,
-                  index=default_idx,
-                  key=f"q_res_{q_id}",
-              )
-              q["result"] = None if selected_res == "-" else selected_res
+              options = ["-"] + [str(i) for i in range(1, 7)]
+            elif q_type == "schwinger_verband" and q_verband:
+              options = ["-"] + sorted([
+                  s["name"] for s in schwinger_list if s["verband"] == q_verband
+              ])
             else:
-              schwinger_options = ["-"] + sorted(ALL_SCHWINGER)
-              default_idx = (
-                  schwinger_options.index(current_res)
-                  if current_res in schwinger_options
-                  else 0
-              )
-              selected_res = st.selectbox(
-                  f"Antwort für: '{q_text}'",
-                  schwinger_options,
-                  index=default_idx,
-                  key=f"q_res_{q_id}",
-              )
-              q["result"] = None if selected_res == "-" else selected_res
+              options = ["-"] + all_schwinger_names
+
+            default_idx = (
+                options.index(current_res) if current_res in options else 0
+            )
+            selected_res = st.selectbox(
+                f"Antwort für: '{q_text}'",
+                options,
+                index=default_idx,
+                key=f"q_res_{q_id}",
+            )
+            q["result"] = None if selected_res == "-" else selected_res
 
           if st.form_submit_button("Antworten speichern"):
             save_data(QUESTIONS_FILE, questions)
             st.success("Zusatzfragen-Resultate gespeichert!")
             st.rerun()
 
-    with tab4:
-      st.write("### 👥 Tippspiel-Teilnehmer verwalten")
+    with tab5:
+      st.write("### 👥 Tippspiel-Teilnehmer / Dummies verwalten")
       with st.form("add_single_participant"):
         new_part = st.text_input(
-            "Name des Tippspiel-Teilnehmers (z. B. Hansueli)"
+            "Name des Teilnehmers / Dummies (z. B. Dummies Standard 3)"
         )
         if st.form_submit_button("Teilnehmer hinzufügen") and new_part:
           clean_np = new_part.strip()
           if clean_np and clean_np not in participants_list:
             participants_list.append(clean_np)
             save_data(PARTICIPANTS_FILE, sorted(participants_list))
-            st.success(f"Tippspiel-Teilnehmer '{clean_np}' hinzugefügt!")
+            st.success(f"Teilnehmer '{clean_np}' hinzugefügt!")
             st.rerun()
           else:
             st.warning("Name ist leer oder existiert bereits.")
@@ -777,7 +867,6 @@ elif menu == "Admin-Bereich":
           edited_name = st.text_input(
               "Namen korrigieren / umbenennen:", value=selected_to_edit
           )
-
           col_e1, col_e2 = st.columns(2)
           with col_e1:
             save_edit = st.form_submit_button("Änderung speichern")
@@ -805,20 +894,16 @@ elif menu == "Admin-Bereich":
           if delete_clicked:
             participants_list.remove(selected_to_edit)
             save_data(PARTICIPANTS_FILE, participants_list)
-            st.success(f"Tippspiel-Teilnehmer '{selected_to_edit}' wurde gelöscht.")
+            st.success(f"Teilnehmer '{selected_to_edit}' wurde gelöscht.")
             st.rerun()
 
         st.divider()
-        st.write(f"**Aktuelle Teilnehmer ({len(participants_list)}):**")
+        st.write(
+            f"**Aktuelle Teilnehmer & Dummies ({len(participants_list)}):**"
+        )
         st.write(", ".join(participants_list))
 
-        if st.button("Komplette Tippspiel-Teilnehmer-Liste leeren"):
-          if os.path.exists(PARTICIPANTS_FILE):
-            os.remove(PARTICIPANTS_FILE)
-          st.success("Teilnehmer-Liste komplett gelöscht.")
-          st.rerun()
-
-    with tab5:
+    with tab6:
       st.write("### 👥 Wer hat gespielt & Vollständigkeit")
       if not tips:
         st.info("Bisher haben sich noch keine Teilnehmer registriert.")
@@ -828,11 +913,11 @@ elif menu == "Admin-Bereich":
         total_questions = len(questions)
 
         for name, entry_val in tips.items():
-          if isinstance(entry_val, dict) and "data" in entry_val:
-            data = entry_val["data"]
-          else:
-            data = entry_val
-
+          data = (
+              entry_val["data"]
+              if isinstance(entry_val, dict) and "data" in entry_val
+              else entry_val
+          )
           user_p = data.get("pairings", {})
           user_q = data.get("questions", {})
 
@@ -859,20 +944,14 @@ elif menu == "Admin-Bereich":
               else f"⚠️ Noch offen ({filled_questions}/{total_questions})"
           )
 
-          if total_pairings == 0:
-            p_status = "Keine Paarungen da"
-          if total_questions == 0:
-            q_status = "Keine Fragen da"
-
           participant_overview.append({
               "Name": name,
               "Paarungs-Tipps": p_status,
               "Zusatzfragen": q_status,
           })
-
         st.table(participant_overview)
 
-    with tab6:
+    with tab7:
       st.write("### Einstellungen & Punkte")
       with st.form("settings_form"):
         p_p = st.number_input(
@@ -927,22 +1006,26 @@ elif menu == "Admin-Bereich":
 
       st.divider()
       st.write("### ⚠️ Reset / Daten zurücksetzen")
-
       confirm_reset = st.checkbox(
           "⚠️ Ja, ich bin absolut sicher, dass ich alle Daten (Tipps,"
-          " Paarungen, Fragen, Teilnehmer) auf den Standard-1. Gang"
-          " zurücksetzen will."
+          " Paarungen, Fragen, Teilnehmer) auf den Standard zurücksetzen will."
       )
-
       if st.button("🔄 Alles zurücksetzen", disabled=not confirm_reset):
-        for f in [TIPS_FILE, QUESTIONS_FILE, PARTICIPANTS_FILE]:
+        for f in [
+            TIPS_FILE,
+            QUESTIONS_FILE,
+            PARTICIPANTS_FILE,
+            SCHWINGER_FILE,
+        ]:
           if os.path.exists(f):
             os.remove(f)
         save_data(PAIRINGS_FILE, DEFAULT_PAIRINGS)
         save_data(QUESTIONS_FILE, DEFAULT_QUESTIONS)
+        save_data(SCHWINGER_FILE, DEFAULT_SCHWINGER)
+        save_data(PARTICIPANTS_FILE, DEFAULT_PARTICIPANTS)
         settings["gang_locked"] = {}
         save_data(SETTINGS_FILE, settings)
-        st.success("Alles auf den 1. Gang zurückgesetzt!")
+        st.success("Alles auf den Standard zurückgesetzt!")
         st.rerun()
 
   elif admin_pw:
