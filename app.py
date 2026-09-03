@@ -225,7 +225,7 @@ DEFAULT_QUESTIONS = [
     },
 ]
 
-DEFAULT_PARTICIPANTS = ["Dummies Standard 1", "Dummies Standard 2"]
+DEFAULT_PARTICIPANTS = []
 
 
 def load_data(file_path, default):
@@ -268,9 +268,6 @@ if not questions:
   save_data(QUESTIONS_FILE, questions)
 
 participants_list = load_data(PARTICIPANTS_FILE, DEFAULT_PARTICIPANTS)
-if not participants_list:
-  participants_list = DEFAULT_PARTICIPANTS
-  save_data(PARTICIPANTS_FILE, participants_list)
 
 tips = load_data(TIPS_FILE, {})
 settings = load_data(
@@ -403,7 +400,19 @@ if menu == "Tippspiel":
         st.write("")
 
         user_data = user_entry.get("data", {"pairings": {}, "questions": {}})
-        sub_tab_p, sub_tab_q = st.tabs(["Gänge / Paarungen", "Zusatzfragen"])
+        
+        # Visuell hervorgehobene Reiter für Gänge/Paarungen und Zusatzfragen
+        st.markdown("""
+        <style>
+        /* Hervorhebung der Unterreiter (Tabs) */
+        .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
+            font-size: 1.15rem !important;
+            font-weight: 700 !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+        sub_tab_p, sub_tab_q = st.tabs(["⚔️ Gänge / Paarungen", "📋 Zusatzfragen"])
 
         with sub_tab_p:
           st.write("")
@@ -478,7 +487,6 @@ if menu == "Tippspiel":
             with st.form("tipping_form_questions"):
               new_user_questions = user_data.get("questions", {})
 
-              # Fragen nach Kategorien gruppieren für eine saubere Gliederung
               categories = [
                   "Siege Andy",
                   "Schlussgangteilnehmer",
@@ -493,12 +501,13 @@ if menu == "Tippspiel":
                     if q.get("category", "Beste Schwinger") == cat
                 ]
                 if cat_questions:
+                  # Dezenter gehaltene Titel für die Zusatzfragen-Kategorien
                   st.markdown(
-                      f"<h3"
-                      f" style='color:#ff4b4b;margin-top:15px;margin-bottom:5px;'>{cat}</h3>",
+                      f"<h4"
+                      f" style='color:#555555;margin-top:18px;margin-bottom:4px;font-weight:600;font-size:1.05rem;'>{cat}</h4>",
                       unsafe_allow_html=True,
                   )
-                  st.markdown("<hr style='margin-top:0px;margin-bottom:15px;'>", unsafe_allow_html=True)
+                  st.markdown("<hr style='margin-top:0px;margin-bottom:12px;'>", unsafe_allow_html=True)
 
                   for q in cat_questions:
                     q_id = q["id"]
@@ -510,7 +519,6 @@ if menu == "Tippspiel":
                     if q_type == "gang_count":
                       options = ["-"] + [str(i) for i in range(1, 7)]
                     elif q_type == "schwinger_verband" and q_verband:
-                      # Nick Alpiger ausschliessen, falls NOSV gewählt ist
                       if q_verband == "NOSV":
                         options = ["-"] + sorted([
                             s["name"]
@@ -578,6 +586,9 @@ if menu == "Tippspiel":
       bonus_p_val = settings.get("bonus_pairing_round", 2)
       bonus_q_val = settings.get("bonus_question_round", 2)
 
+      # Definition der Frage-IDs für den Schlussgangteilnehmer (für vertauschbare Auswertung)
+      schlussgang_q_ids = [q["id"] for q in questions if q.get("category") == "Schlussgangteilnehmer"]
+
       user_stats = {}
       for name, entry_val in tips.items():
         data = (
@@ -607,13 +618,32 @@ if menu == "Tippspiel":
           gang_points_map[gang_nr] = g_pts
           p_points_total += g_pts
 
+        # Spezielle Auswertung für Zusatzfragen inkl. vertauschbarer Schlussgangteilnehmer
+        # Wir sammeln zuerst alle echten Resultate und Tipp-Antworten für die Kategorie "Schlussgangteilnehmer"
+        sg_results = [str(q.get("result", "")).strip().lower() for q in questions if q.get("category") == "Schlussgangteilnehmer"]
+        sg_results_clean = [res for res in sg_results if res and res != "-"]
+
+        sg_tips_map = {q_id: str(user_q_tips.get(q_id, "")).strip().lower() for q_id in schlussgang_q_ids}
+        sg_tips_clean = [val for val in sg_tips_map.values() if val and val != "-"]
+
+        # Prüfen ob beide Schlussgang-Resultate komplett eingetragen sind
+        schlussgang_evaluated = len(sg_results_clean) >= 2
+
         for q in questions:
           q_id = q["id"]
           if q.get("result"):
             user_ans = str(user_q_tips.get(q_id, "")).strip().lower()
             correct_ans = str(q.get("result", "")).strip().lower()
-            if user_ans and user_ans == correct_ans:
-              q_points_val += q_points_config.get(q_id, 2)
+            
+            if q.get("category") == "Schlussgangteilnehmer" and schlussgang_evaluated:
+              # Wenn beide getippten Schwinger in den offiziellen Schlussgang-Resultaten vorkommen, gib Punkte!
+              if user_ans and user_ans != "-" and user_ans in sg_results_clean:
+                # Um sicherzustellen, dass ein Schwinger bei doppelten Tipps nicht doppelt zählt, prüfen wir das Set
+                # (bei 2 verschiedenen Schlussgangteilnehmern passt das exakt)
+                q_points_val += q_points_config.get(q_id, 2)
+            else:
+              if user_ans and user_ans == correct_ans:
+                q_points_val += q_points_config.get(q_id, 2)
 
         user_stats[name] = {
             "gang_points_map": gang_points_map,
@@ -728,7 +758,7 @@ elif menu == "Admin-Bereich":
         "Paarungen & Gänge sperren",
         "Resultate Eintragen",
         "Zusatzfragen",
-        "Tippspiel-Teilnehmer / Dummies",
+        "Tippspiel-Teilnehmer",
         "Wer hat gespielt?",
         "Einstellungen & Punkte",
     ])
@@ -910,10 +940,10 @@ elif menu == "Admin-Bereich":
             st.rerun()
 
     with tab5:
-      st.write("### 👥 Tippspiel-Teilnehmer / Dummies verwalten")
+      st.write("### 👥 Tippspiel-Teilnehmer verwalten")
       with st.form("add_single_participant"):
         new_part = st.text_input(
-            "Name des Teilnehmers / Dummies (z. B. Dummies Standard 3)"
+            "Name des Teilnehmers (z. B. Max Mustermann)"
         )
         if st.form_submit_button("Teilnehmer hinzufügen") and new_part:
           clean_np = new_part.strip()
@@ -966,9 +996,11 @@ elif menu == "Admin-Bereich":
 
         st.divider()
         st.write(
-            f"**Aktuelle Teilnehmer & Dummies ({len(participants_list)}):**"
+            f"**Aktuelle Teilnehmer ({len(participants_list)}):**"
         )
-        st.write(", ".join(participants_list))
+        # Nach jedem Namen eine neue Zeile beginnen
+        for p_name in sorted(participants_list):
+          st.write(f"- {p_name}")
 
     with tab6:
       st.write("### 👥 Wer hat gespielt & Vollständigkeit")
@@ -1055,7 +1087,7 @@ elif menu == "Admin-Bereich":
             max_value=10,
             value=settings.get("bonus_question_round", 2),
         )
-        new_pw = st.text_input(
+        new_wp = st.text_input(
             "Admin-Passwort ändern", value=settings.get("admin_pw", "")
         )
 
@@ -1065,8 +1097,8 @@ elif menu == "Admin-Bereich":
           settings["question_points"] = new_q_points
           settings["bonus_pairing_round"] = int(b_p)
           settings["bonus_question_round"] = int(b_q)
-          if new_pw:
-            settings["admin_pw"] = new_pw
+          if new_wp:
+            settings["admin_pw"] = new_wp
           save_data(SETTINGS_FILE, settings)
           st.success("Einstellungen erfolgreich aktualisiert!")
           st.rerun()
