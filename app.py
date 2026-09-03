@@ -13,6 +13,9 @@ SETTINGS_FILE = "settings.json"
 PARTICIPANTS_FILE = "participants.json"
 SCHWINGER_FILE = "schwinger.json"
 
+APP_VERSION = "v6"
+APP_BUILD = "03.09.2026 12:11"
+
 # --- OFFIZIELLE SCHWINGER-LISTE (Startliste ESV, Stand 30.08.2026) ---
 DEFAULT_SCHWINGER = [
     # BKSV (Bernisch-kantonaler Schwingerverband)
@@ -998,8 +1001,8 @@ if menu == "Tippspiel":
       locked_stats = settings.get("gang_locked", {})
       if any(locked_stats.get(str(g), False) for g in existing_gangs) or settings.get("questions_locked", False):
         with st.expander("📊 Tippstatistik"):
-          stats_line_style = "font-size:0.82rem;color:#222;line-height:1.15;margin:0 0 1px 0;"
-          stats_head_style = "font-size:0.9rem;color:#111;font-weight:700;line-height:1.15;margin:6px 0 2px 0;"
+          stats_line_style = "font-size:0.82rem;color:#222;line-height:1.25;margin:0 0 4px 0;"
+          stats_head_style = "font-size:0.9rem;color:#111;font-weight:700;line-height:1.2;margin:8px 0 4px 0;"
           locked_pairings = [p for p in pairings if locked_stats.get(str(p.get("gang")), False)]
           for g in sorted({p["gang"] for p in locked_pairings}, reverse=True):
             st.markdown(f"<p style='{stats_head_style}'>{g}. Gang</p>", unsafe_allow_html=True)
@@ -1201,6 +1204,7 @@ if menu == "Tippspiel":
 
 elif menu == "Admin-Bereich":
   st.subheader("⚙️ Admin-Verwaltung")
+  st.caption(f"Geladene Version: {APP_VERSION} · Build: {APP_BUILD}")
   admin_pw = st.text_input("Admin-Passwort:", type="password")
 
   if admin_pw == settings.get("admin_pw", "schwingen2026"):
