@@ -13,11 +13,11 @@ SCHWINGER_FILE = "schwinger.json"
 DEFAULT_SCHWINGER = [
     # BKSV (Bernisch-kantonaler Schwingerverband)
     {"id": 1, "name": "Aeschbacher Matthias ***", "verband": "BKSV"},
-    {"id": 2, "name": "Dubach Damian *", "verband": "BKSV"},
-    {"id": 3, "name": "Gasser Dominik **", "verband": "BKSV"},
-    {"id": 4, "name": "Gobeli Patrick *", "verband": "BKSV"},
+    {"id": 2, "name": "Dubach Damian **", "verband": "BKSV"},
+    {"id": 3, "name": "Gasser Dominik ***", "verband": "BKSV"},
+    {"id": 4, "name": "Gobeli Patrick ***", "verband": "BKSV"},
     {"id": 5, "name": "Kämpf Bernhard ***", "verband": "BKSV"},
-    {"id": 6, "name": "Ledermann Michael **", "verband": "BKSV"},
+    {"id": 6, "name": "Ledermann Michael ***", "verband": "BKSV"},
     {"id": 7, "name": "Moser Michael ***", "verband": "BKSV"},
     {"id": 8, "name": "Rutsch Remo **", "verband": "BKSV"},
     {"id": 9, "name": "Scheuner Adrian *", "verband": "BKSV"},
@@ -185,7 +185,7 @@ DEFAULT_QUESTIONS = [
     },
     {
         "id": "q5",
-        "question": "Bester Schwinger NOS",
+        "question": "Bester Schwinger NOS (gemäss Rangliste fortlaufende Platzierung)",
         "type": "schwinger_verband",
         "verband": "NOSV",
         "category": "Beste Schwinger",
@@ -193,7 +193,7 @@ DEFAULT_QUESTIONS = [
     },
     {
         "id": "q6",
-        "question": "Bester Schwinger BKSV",
+        "question": "Bester Schwinger BKSV (gemäss Rangliste fortlaufende Platzierung)",
         "type": "schwinger_verband",
         "verband": "BKSV",
         "category": "Beste Schwinger",
@@ -201,7 +201,7 @@ DEFAULT_QUESTIONS = [
     },
     {
         "id": "q7",
-        "question": "Bester Schwinger ISV",
+        "question": "Bester Schwinger ISV (gemäss Rangliste fortlaufende Platzierung)",
         "type": "schwinger_verband",
         "verband": "ISV",
         "category": "Beste Schwinger",
@@ -209,7 +209,7 @@ DEFAULT_QUESTIONS = [
     },
     {
         "id": "q8",
-        "question": "Bester Schwinger NWSV",
+        "question": "Bester Schwinger NWSV (gemäss Rangliste fortlaufende Platzierung)",
         "type": "schwinger_verband",
         "verband": "NWSV",
         "category": "Beste Schwinger",
@@ -217,7 +217,7 @@ DEFAULT_QUESTIONS = [
     },
     {
         "id": "q9",
-        "question": "Bester Schwinger SWSV",
+        "question": "Bester Schwinger SWSV (gemäss Rangliste fortlaufende Platzierung)",
         "type": "schwinger_verband",
         "verband": "SWSV",
         "category": "Beste Schwinger",
@@ -401,7 +401,6 @@ if menu == "Tippspiel":
 
         user_data = user_entry.get("data", {"pairings": {}, "questions": {}})
         
-        # Visuell hervorgehobene Reiter für Gänge/Paarungen und Zusatzfragen
         st.markdown("""
         <style>
         .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
@@ -453,7 +452,6 @@ if menu == "Tippspiel":
                         else 0
                     )
 
-                    # Punkte-Berechnung für diese spezifische Paarung
                     achieved_p = 0
                     possible_p = pts_p_val if p.get("result") else 0
                     if p.get("result"):
@@ -462,7 +460,6 @@ if menu == "Tippspiel":
 
                     label = f"{s1}  ⚔️  {s2}"
                     
-                    # Layout mit flexibler Ausrichtung für Titel und Punkteanzeige rechts
                     col_l, col_r = st.columns([4, 1.3])
                     with col_l:
                       st.markdown(
@@ -503,7 +500,7 @@ if menu == "Tippspiel":
               new_user_questions = user_data.get("questions", {})
               q_points_config = settings.get("question_points", {})
 
-              # Hilfs-Set für Schlussgangteilnehmer-Auswertung
+              # Alle Schlussgang-Fragen-IDs und deren Resultate ermitteln
               schlussgang_q_ids = [q["id"] for q in questions if q.get("category") == "Schlussgangteilnehmer"]
               sg_results = [str(q.get("result", "")).strip().lower() for q in questions if q.get("category") == "Schlussgangteilnehmer"]
               sg_results_clean = [res for res in sg_results if res and res != "-"]
@@ -561,7 +558,6 @@ if menu == "Tippspiel":
                         else 0
                     )
 
-                    # Punkte für diese spezifische Frage berechnen
                     max_q_pts = q_points_config.get(q_id, 2)
                     achieved_q_pts = 0
                     possible_q_pts = max_q_pts if q.get("result") else 0
@@ -571,13 +567,21 @@ if menu == "Tippspiel":
                       correct_ans_val = str(q.get("result", "")).strip().lower()
 
                       if cat == "Schlussgangteilnehmer" and schlussgang_evaluated:
+                        # Bugfix gegen doppelte Punkte bei identischem Tipp im Schlussgang:
                         if user_ans_val and user_ans_val != "-" and user_ans_val in sg_results_clean:
-                          achieved_q_pts = max_q_pts
+                          if q_id == schlussgang_q_ids[1] and len(schlussgang_q_ids) > 1:
+                            other_q_id = schlussgang_q_ids[0]
+                            other_user_ans = str(new_user_questions.get(other_q_id, "")).strip().lower()
+                            if user_ans_val == other_user_ans:
+                              achieved_q_pts = 0 if other_user_ans == user_ans_val and q_id != schlussgang_q_ids[0] else max_q_pts
+                            else:
+                              achieved_q_pts = max_q_pts
+                          else:
+                            achieved_q_pts = max_q_pts
                       else:
                         if user_ans_val and user_ans_val == correct_ans_val:
                           achieved_q_pts = max_q_pts
 
-                    # Layout für Frage und Punkteanzeige rechts
                     col_l, col_r = st.columns([4, 1.3])
                     with col_l:
                       st.markdown(
@@ -672,6 +676,11 @@ if menu == "Tippspiel":
             
             if q.get("category") == "Schlussgangteilnehmer" and schlussgang_evaluated:
               if user_ans and user_ans != "-" and user_ans in sg_results_clean:
+                if len(schlussgang_q_ids) >= 2 and q_id == schlussgang_q_ids[1]:
+                  other_q_id = schlussgang_q_ids[0]
+                  other_user_ans = str(user_q_tips.get(other_q_id, "")).strip().lower()
+                  if user_ans == other_user_ans:
+                    continue
                 q_points_val += q_points_config.get(q_id, 2)
             else:
               if user_ans and user_ans == correct_ans:
@@ -1130,6 +1139,7 @@ elif menu == "Admin-Bereich":
           if new_wp:
             settings["admin_pw"] = new_wp
           save_data(SETTINGS_FILE, settings)
+          settings = load_data(SETTINGS_FILE, settings)
           st.success("Einstellungen erfolgreich aktualisiert!")
           st.rerun()
 
