@@ -1073,7 +1073,7 @@ if menu == "Tippspiel":
             if current_rank == 2
             else "🥉"
             if current_rank == 3
-            else f"#{current_rank}"
+            else f"{current_rank}"
         )
 
         with st.container(border=True):
@@ -1138,11 +1138,16 @@ if menu == "Tippspiel":
                   else:
                     tip_display = f"{s1} · {s2} —"
                   if res:
-                    tip_color = "#176b3a" if tip != "-" and tip == res else "#777777"
+                    tip_correct = tip != "-" and tip == res
+                    tip_color = "#176b3a" if tip_correct else "#777777"
+                    tip_symbol = "✓" if tip_correct else "✗"
+                    tip_weight = "700" if tip_correct else "400"
                   else:
                     tip_color = "#333333"
+                    tip_symbol = ""
+                    tip_weight = "400"
                   st.markdown(
-                      f"<p style='font-size:0.9rem;color:{tip_color};margin:0 0 2px 10px;'>• {tip_display} <span style='color:{tip_color}'>({p_pts_earned}/{p_pts_possible})</span></p>",
+                      f"<p style='font-size:0.9rem;color:{tip_color};font-weight:{tip_weight};margin:0 0 2px 10px;'>{tip_symbol} {tip_display} <span style='color:{tip_color}'>({p_pts_earned}/{p_pts_possible})</span></p>",
                       unsafe_allow_html=True,
                   )
                 st.write("")
@@ -1175,12 +1180,19 @@ if menu == "Tippspiel":
                 res_display = f" | Richtig: <b>{q_res}</b>" if q_res is not None and q_res != "" else ""
                 if q.get("type") == "winner_points":
                   q_tip_color = "#333333"
+                  q_symbol = ""
+                  q_weight = "400"
                 elif q_res is not None:
-                  q_tip_color = "#176b3a" if q_pts_earned > 0 else "#777777"
+                  q_correct = q_pts_earned > 0
+                  q_tip_color = "#176b3a" if q_correct else "#777777"
+                  q_symbol = "✓" if q_correct else "✗"
+                  q_weight = "700" if q_correct else "400"
                 else:
                   q_tip_color = "#333333"
+                  q_symbol = ""
+                  q_weight = "400"
                 st.markdown(
-                    f"<p style='font-size:0.9rem;color:{q_tip_color};margin:0 0 2px 10px;'>• {q_text} ➔ Tipp: <b>{q_tip}</b>{res_display} (Pkt: {q_pts_earned}/{q_pts_possible})</p>",
+                    f"<p style='font-size:0.9rem;color:{q_tip_color};font-weight:{q_weight};margin:0 0 2px 10px;'>{q_symbol} {q_text} ➔ Tipp: <b>{q_tip}</b>{res_display} (Pkt: {q_pts_earned}/{q_pts_possible})</p>",
                     unsafe_allow_html=True,
                 )
 
