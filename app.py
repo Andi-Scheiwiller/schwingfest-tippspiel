@@ -13,8 +13,8 @@ SETTINGS_FILE = "settings.json"
 PARTICIPANTS_FILE = "participants.json"
 SCHWINGER_FILE = "schwinger.json"
 
-APP_VERSION = "v7"
-APP_BUILD = "03.09.2026 13:30"
+APP_VERSION = "v8"
+APP_BUILD = "03.09.2026 13:38"
 
 # --- OFFIZIELLE SCHWINGER-LISTE (Startliste ESV, Stand 30.08.2026) ---
 DEFAULT_SCHWINGER = [
@@ -417,26 +417,38 @@ st.title("🏆 Tippspiel Kilchberger Schwinget")
 # Einheitliches, responsives Raster für Statistik und Ranglisten-Details.
 st.markdown("""
 <style>
+/* Paarungsstatistik: jede Tippoption ist eine eigene kompakte Gruppe. */
 .pair-grid {
-  display:grid; grid-template-columns:minmax(0,1fr) 44px 58px 44px minmax(0,1fr) 44px;
-  column-gap:7px; align-items:center; font-size:.82rem; line-height:1.25; margin:0 0 6px 0; color:#222;
+  display:grid; grid-template-columns:minmax(0,1fr) 94px minmax(0,1fr);
+  column-gap:18px; align-items:center; font-size:.82rem; line-height:1.3; margin:0 0 7px 0; color:#222;
 }
-.pair-grid .n1 {text-align:left; min-width:0;} .pair-grid .n2 {text-align:left; min-width:0;}
-.pair-grid .pct,.pair-grid .draw {text-align:right; white-space:nowrap;}
+.pair-choice {display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:8px; align-items:center; min-width:0;}
+.pair-choice.center {grid-template-columns:auto auto; justify-content:center;}
+.pair-choice .pct {white-space:nowrap; text-align:right; font-weight:700;}
+
+/* Spieler-Tipps: Zeichen steht direkt beim zugehörigen Schwinger. */
 .tip-grid {
-  display:grid; grid-template-columns:20px minmax(0,1fr) 22px 12px minmax(0,1fr) 22px 46px;
-  column-gap:5px; align-items:center; font-size:.88rem; line-height:1.25; margin:0 0 5px 6px;
+  display:grid; grid-template-columns:20px minmax(0,1fr) minmax(0,1fr) 46px;
+  column-gap:12px; align-items:center; font-size:.88rem; line-height:1.3; margin:0 0 6px 6px;
 }
-.tip-grid .sym,.tip-grid .mark,.tip-grid .pts {white-space:nowrap;} .tip-grid .pts{text-align:right;}
-.q-grid {display:grid; grid-template-columns:minmax(0,1fr) 52px; column-gap:10px; align-items:start; font-size:.82rem; line-height:1.25; margin:0 0 5px 0; color:#222;}
-.q-grid .count{text-align:right; white-space:nowrap; font-weight:700;}
-.qtip-grid {display:grid; grid-template-columns:20px minmax(0,1.35fr) minmax(0,.9fr) 48px; column-gap:7px; align-items:start; font-size:.88rem; line-height:1.25; margin:0 0 6px 6px;}
+.tip-choice {display:grid; grid-template-columns:minmax(0,1fr) 20px; column-gap:5px; align-items:center; min-width:0;}
+.tip-grid .mark,.tip-grid .sym,.tip-grid .pts {white-space:nowrap;}
+.tip-grid .pts{text-align:right;}
+
+/* Fragen: Resultat bewusst nahe bei der Nennung statt am rechten Fensterrand. */
+.q-grid {display:grid; grid-template-columns:minmax(150px,300px) auto; column-gap:18px; align-items:start; width:fit-content; max-width:100%; font-size:.82rem; line-height:1.3; margin:0 0 6px 0; color:#222;}
+.q-grid .count{white-space:nowrap; font-weight:700;}
+.qtip-grid {display:grid; grid-template-columns:20px minmax(180px,320px) minmax(100px,220px) 48px; column-gap:12px; align-items:start; width:fit-content; max-width:100%; font-size:.88rem; line-height:1.3; margin:0 0 7px 6px;}
 .qtip-grid .pts{text-align:right; white-space:nowrap;}
+
 @media (max-width: 520px) {
-  .pair-grid {grid-template-columns:minmax(0,1fr) 34px 44px 34px minmax(0,1fr) 34px; column-gap:4px; font-size:.72rem;}
-  .tip-grid {grid-template-columns:16px minmax(0,1fr) 18px 8px minmax(0,1fr) 18px 38px; column-gap:3px; font-size:.76rem; margin-left:0;}
-  .q-grid {font-size:.76rem; grid-template-columns:minmax(0,1fr) 48px;}
-  .qtip-grid {grid-template-columns:16px minmax(0,1fr) minmax(0,.8fr) 40px; column-gap:4px; font-size:.76rem; margin-left:0;}
+  .pair-grid {grid-template-columns:minmax(0,1fr) 68px minmax(0,1fr); column-gap:7px; font-size:.70rem;}
+  .pair-choice {column-gap:4px;}
+  .pair-choice.center {grid-template-columns:auto auto; column-gap:3px;}
+  .tip-grid {grid-template-columns:16px minmax(0,1fr) minmax(0,1fr) 38px; column-gap:5px; font-size:.74rem; margin-left:0;}
+  .tip-choice {grid-template-columns:minmax(0,1fr) 16px; column-gap:2px;}
+  .q-grid {grid-template-columns:minmax(120px,1fr) auto; column-gap:12px; width:100%; font-size:.76rem;}
+  .qtip-grid {grid-template-columns:16px minmax(0,1fr) minmax(80px,.75fr) 40px; column-gap:5px; width:100%; font-size:.74rem; margin-left:0;}
 }
 </style>
 """, unsafe_allow_html=True)
@@ -1044,7 +1056,7 @@ if menu == "Tippspiel":
               if n:
                 a = round(100*c.get(p["schwinget_1"],0)/n); d = round(100*c.get("Gestellt",0)/n); b = round(100*c.get(p["schwinget_2"],0)/n)
                 st.markdown(
-                    f"<div class='pair-grid'><span class='n1'>{p['schwinget_1']}</span><b class='pct'>{a}%</b><span class='draw'>Gestellt</span><b class='pct'>{d}%</b><span class='n2'>{p['schwinget_2']}</span><b class='pct'>{b}%</b></div>",
+                    f"<div class='pair-grid'><span class='pair-choice'><span>{p['schwinget_1']}</span><span class='pct'>{a}%</span></span><span class='pair-choice center'><span>Gestellt</span><span class='pct'>{d}%</span></span><span class='pair-choice'><span>{p['schwinget_2']}</span><span class='pct'>{b}%</span></span></div>",
                     unsafe_allow_html=True,
                 )
           if settings.get("questions_locked", False):
@@ -1185,7 +1197,7 @@ if menu == "Tippspiel":
                   else:
                     m1, m2 = "", ""
                   st.markdown(
-                      f"<div class='tip-grid' style='color:{tip_color};font-weight:{tip_weight};'><span class='sym'>{tip_symbol}</span><span>{s1}</span><b class='mark'>{m1}</b><span>·</span><span>{s2}</span><b class='mark'>{m2}</b><span class='pts'>{p_pts_earned}/{p_pts_possible}</span></div>",
+                      f"<div class='tip-grid' style='color:{tip_color};font-weight:{tip_weight};'><span class='sym'>{tip_symbol}</span><span class='tip-choice'><span>{s1}</span><b class='mark'>{m1}</b></span><span class='tip-choice'><span>{s2}</span><b class='mark'>{m2}</b></span><span class='pts'>{p_pts_earned}/{p_pts_possible}</span></div>",
                       unsafe_allow_html=True,
                   )
                 st.write("")
