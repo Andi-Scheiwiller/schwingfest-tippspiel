@@ -240,7 +240,7 @@ def load_data(file_path, default):
 
 def save_data(file_path, data):
   with open(file_path, "w", encoding="utf-8") as f:
-    json.dump(data, f, ensure_soliciting=False if "ensure_ascii" in globals() else False, ensure_ascii=False, indent=4)
+    json.dump(data, f, ensure_ascii=False, indent=4)
 
 
 st.set_page_config(
@@ -464,7 +464,7 @@ if menu == "Tippspiel":
                     col_l, col_r = st.columns([4, 1.3])
                     with col_l:
                       st.markdown(
-                          f"<p style='font-size:1.15rem;font-weight:600;margin-bottom:0px;padding-top:4px;'>{label}</p>",
+                          f"<p style='font-size:1.0rem;font-weight:600;margin-bottom:0px;padding-top:4px;'>{label}</p>",
                           unsafe_allow_html=True,
                       )
                     with col_r:
@@ -506,7 +506,6 @@ if menu == "Tippspiel":
               q_points_config = settings.get("question_points", {})
 
               schlussgang_q_ids = [q["id"] for q in questions if q.get("category") == "Schlussgangteilnehmer"]
-              # Fix: Safely handle None values when evaluating schlussgang results
               sg_results = [
                   str(q.get("result")).strip().lower()
                   for q in questions
@@ -593,7 +592,7 @@ if menu == "Tippspiel":
                     col_l, col_r = st.columns([4, 1.3])
                     with col_l:
                       st.markdown(
-                          f"<p style='font-size:1.15rem;font-weight:600;margin-bottom:0px;padding-top:4px;'>{q_text}</p>",
+                          f"<p style='font-size:1.0rem;font-weight:600;margin-bottom:0px;padding-top:4px;'>{q_text}</p>",
                           unsafe_allow_html=True,
                       )
                     with col_r:
@@ -674,7 +673,6 @@ if menu == "Tippspiel":
           gang_points_map[gang_nr] = g_pts
           p_points_total += g_pts
 
-        # Fix: Safely handle None values when evaluating schlussgang results
         sg_results = [
             str(q.get("result")).strip().lower()
             for q in questions
@@ -776,35 +774,26 @@ if menu == "Tippspiel":
         )
 
         with st.container(border=True):
-          col1, col2, col3 = st.columns([1.2, 3.8, 2])
+          col1, col2 = st.columns([5.2, 1.8])
           with col1:
             st.markdown(
-                f"<div style='font-size: 1.2rem; font-weight: bold; text-align:"
-                f" center; padding-top: 6px;'>{rank_display}</div>",
+                f"<div style='display: flex; align-items: baseline; gap: 8px;'>"
+                f"<span style='font-size: 1.1rem; font-weight: bold;'>{rank_display}</span>"
+                f"<span style='font-size: 1.0rem; font-weight: bold;'>{entry['Name']}</span>"
+                f"</div>"
+                f"<div style='font-size: 0.75rem; color: gray; margin-top: 2px; margin-left: 26px;'>"
+                f"G: {entry['Gänge']}(+{entry['Bonus Gänge']}B) | F: {entry['Fragen']}(+{entry['Bonus Fragen']}B)"
+                f"</div>",
                 unsafe_allow_html=True,
             )
           with col2:
             st.markdown(
-                f"<div style='font-size: 1rem; font-weight: bold; margin: 0;"
-                f" line-height: 1.2;'>{entry['Name']}</div>",
-                unsafe_allow_html=True,
-            )
-            st.markdown(
-                f"<div style='font-size: 0.75rem; color: gray; margin-top:"
-                f" 2px;'>G: {entry['Gänge']} (+{entry['Bonus Gänge']}B) | F:"
-                f" {entry['Fragen']} (+{entry['Bonus Fragen']}B)</div>",
-                unsafe_allow_html=True,
-            )
-          with col3:
-            st.markdown(
-                f"<div style='text-align: right;'><span"
-                f" style='font-size: 0.75rem; color: gray;'>Total</span><br><b"
-                f" style='font-size: 1.2rem; color: #ff4b4b;'>{entry['Total']}"
-                " Pkt.</b></div>",
+                f"<div style='text-align: right; padding-top: 2px;'>"
+                f"<b style='font-size: 1.15rem; color: #ff4b4b;'>{entry['Total']} Pkt.</b>"
+                f"</div>",
                 unsafe_allow_html=True,
             )
 
-          # Dezenter Expander mit Pfeil nach unten (v) und verkleinerter Textdarstellung
           with st.expander(f"▼ Tipps von {entry['Name']} anzeigen"):
             user_p_tips = entry["raw_data"].get("pairings", {})
             user_q_tips = entry["raw_data"].get("questions", {})
