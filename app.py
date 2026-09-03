@@ -240,7 +240,7 @@ def load_data(file_path, default):
 
 def save_data(file_path, data):
   with open(file_path, "w", encoding="utf-8") as f:
-    json.dump(data, f, ensure_ascii=False, indent=4)
+    json.dump(data, f, ensure_soliciting=False if "ensure_ascii" in globals() else False, ensure_ascii=False, indent=4)
 
 
 st.set_page_config(
@@ -289,6 +289,7 @@ settings = load_data(
         "bonus_pairing_round": 2,
         "bonus_question_round": 2,
         "gang_locked": {},
+        "questions_locked": False,
     },
 )
 
@@ -496,12 +497,21 @@ if menu == "Tippspiel":
           if not questions:
             st.info("Noch keine Zusatzfragen vorhanden.")
           else:
+            q_is_locked = settings.get("questions_locked", False)
+            if q_is_locked:
+              st.info("🔒 Die Zusatzfragen wurden vom Admin für die Tippabgabe gesperrt.")
+
             with st.form("tipping_form_questions"):
               new_user_questions = user_data.get("questions", {})
               q_points_config = settings.get("question_points", {})
 
               schlussgang_q_ids = [q["id"] for q in questions if q.get("category") == "Schlussgangteilnehmer"]
-              sg_results = [str(q.get("result", "")).strip().lower() for q in questions if q.get("category") == "Schlussgangteilnehmer"]
+              # Fix: Safely handle None values when evaluating schlussgang results
+              sg_results = [
+                  str(q.get("result")).strip().lower()
+                  for q in questions
+                  if q.get("category") == "Schlussgangteilnehmer" and q.get("result") is not None
+              ]
               sg_results_clean = [res for res in sg_results if res and res != "-"]
               schlussgang_evaluated = len(sg_results_clean) >= 2
 
@@ -559,11 +569,11 @@ if menu == "Tippspiel":
 
                     max_q_pts = q_points_config.get(q_id, 2)
                     achieved_q_pts = 0
-                    possible_q_pts = max_q_pts if q.get("result") else 0
+                    possible_q_pts = max_q_pts if q.get("result") is not None else 0
 
-                    if q.get("result"):
+                    if q.get("result") is not None:
                       user_ans_val = str(default_ans).strip().lower()
-                      correct_ans_val = str(q.get("result", "")).strip().lower()
+                      correct_ans_val = str(q.get("result")).strip().lower()
 
                       if cat == "Schlussgangteilnehmer" and schlussgang_evaluated:
                         if user_ans_val and user_ans_val != "-" and user_ans_val in sg_results_clean:
@@ -597,12 +607,13 @@ if menu == "Tippspiel":
                         options,
                         index=default_idx,
                         key=f"q_sel_{q_id}",
+                        disabled=q_is_locked,
                         label_visibility="collapsed",
                     )
                     new_user_questions[q_id] = None if ans == "-" else ans
                     st.write("")
 
-              submit_q = st.form_submit_button("Zusatzfragen speichern")
+              submit_q = st.form_submit_button("Zusatzfragen speichern", disabled=q_is_locked)
               if submit_q:
                 user_data["questions"] = new_user_questions
                 tips[clean_name]["data"] = user_data
@@ -663,15 +674,20 @@ if menu == "Tippspiel":
           gang_points_map[gang_nr] = g_pts
           p_points_total += g_pts
 
-        sg_results = [str(q.get("result", "")).strip().lower() for q in questions if q.get("category") == "Schlussgangteilnehmer"]
+        # Fix: Safely handle None values when evaluating schlussgang results
+        sg_results = [
+            str(q.get("result")).strip().lower()
+            for q in questions
+            if q.get("category") == "Schlussgangteilnehmer" and q.get("result") is not None
+        ]
         sg_results_clean = [res for res in sg_results if res and res != "-"]
         schlussgang_evaluated = len(sg_results_clean) >= 2
 
         for q in questions:
           q_id = q["id"]
-          if q.get("result"):
+          if q.get("result") is not None:
             user_ans = str(user_q_tips.get(q_id, "")).strip().lower()
-            correct_ans = str(q.get("result", "")).strip().lower()
+            correct_ans = str(q.get("result")).strip().lower()
             
             if q.get("category") == "Schlussgangteilnehmer" and schlussgang_evaluated:
               if user_ans and user_ans != "-" and user_ans in sg_results_clean:
@@ -710,7 +726,7 @@ if menu == "Tippspiel":
             for leader in leaders:
               user_stats[leader]["bonus_p"] += bonus_p_val
 
-      if any(q.get("result") for q in questions) and questions:
+      if any(q.get("result") is not None for q in questions) and questions:
         max_q_pts = -1
         q_leaders = []
         for name, stats in user_stats.items():
@@ -788,8 +804,8 @@ if menu == "Tippspiel":
                 unsafe_allow_html=True,
             )
 
-          # NEU: Aufklappbarer Bereich mit den getippten Resultaten für gesperrte Gänge inklusive Punkteangabe
-          with st.expander(f"🔍 Tipps von {entry['Name']} anzeigen"):
+          # Dezenter Expander mit Pfeil nach unten (v) und verkleinerter Textdarstellung
+          with st.expander(f"▼ Tipps von {entry['Name']} anzeigen"):
             user_p_tips = entry["raw_data"].get("pairings", {})
             user_q_tips = entry["raw_data"].get("questions", {})
             
@@ -799,13 +815,13 @@ if menu == "Tippspiel":
             has_locked_gangs = any(locked_dict.get(str(g), False) for g in existing_gangs)
             
             if not has_locked_gangs:
-              st.info("Bisher sind noch keine Gänge vom Admin gesperrt worden.")
+              st.markdown("<p style='font-size: 0.85rem; color: #666;'>Bisher sind noch keine Gänge vom Admin gesperrt worden.</p>", unsafe_allow_html=True)
             else:
-              st.markdown("##### ⚔️ Gesperrte Paarungen & Tipps")
+              st.markdown("<p style='font-size: 0.9rem; font-weight: bold; margin-bottom: 4px;'>⚔️ Gesperrte Paarungen & Tipps</p>", unsafe_allow_html=True)
               for gang_nr, gang_pairings in groupby(sorted_pairings, key=lambda x: x["gang"]):
                 gang_str = str(gang_nr)
                 if locked_dict.get(gang_str, False):
-                  st.markdown(f"**Gang {gang_nr}**")
+                  st.markdown(f"<p style='font-size: 0.85rem; font-weight: bold; margin-bottom: 2px;'>Gang {gang_nr}</p>", unsafe_allow_html=True)
                   for p in gang_pairings:
                     p_id = p["id"]
                     s1 = p["schwinget_1"]
@@ -813,38 +829,40 @@ if menu == "Tippspiel":
                     tip = user_p_tips.get(p_id, "-")
                     res = p.get("result")
                     
-                    # Punkte pro Paarung berechnen
                     p_pts_earned = 0
                     p_pts_possible = pts_p if res else 0
                     if res and tip != "-" and tip == res:
                       p_pts_earned = pts_p
                     
                     match_str = f"{s1} vs {s2}"
-                    st.markdown(f"- *{match_str}* ➔ **Tipp:** {tip} | (Punkte: {p_pts_earned} / {p_pts_possible})")
+                    st.markdown(f"<p style='font-size: 0.8rem; color: #666; margin: 0 0 2px 10px;'>• <i>{match_str}</i> ➔ <b>{tip}</b> (Pkt: {p_pts_earned}/{p_pts_possible})</p>", unsafe_allow_html=True)
                   st.write("")
 
-            # Optional auch Zusatzfragen anzeigen (falls gewünscht, hier direkt integriert)
             if questions:
-              st.markdown("##### 📋 Zusatzfragen & Tipps")
-              for q in questions:
-                q_id = q["id"]
-                q_text = q["question"]
-                q_res = q.get("result")
-                q_tip = user_q_tips.get(q_id, "-")
-                if not q_tip:
-                  q_tip = "-"
-                
-                max_q_pts = q_points_config.get(q_id, 2)
-                q_pts_earned = 0
-                q_pts_possible = max_q_pts if q_res else 0
-                
-                if q_res:
-                  user_ans_val = str(q_tip).strip().lower()
-                  correct_ans_val = str(q_res).strip().lower()
-                  if user_ans_val and user_ans_val == correct_ans_val:
-                    q_pts_earned = max_q_pts
-                
-                st.markdown(f"- *{q_text}* ➔ **Tipp:** {q_tip} | (Punkte: {q_pts_earned} / {q_pts_possible})")
+              q_is_locked = settings.get("questions_locked", False)
+              if q_is_locked:
+                st.markdown("<p style='font-size: 0.9rem; font-weight: bold; margin-top: 8px; margin-bottom: 4px;'>📋 Zusatzfragen & Tipps</p>", unsafe_allow_html=True)
+                for q in questions:
+                  q_id = q["id"]
+                  q_text = q["question"]
+                  q_res = q.get("result")
+                  q_tip = user_q_tips.get(q_id, "-")
+                  if not q_tip:
+                    q_tip = "-"
+                  
+                  max_q_pts = q_points_config.get(q_id, 2)
+                  q_pts_earned = 0
+                  q_pts_possible = max_q_pts if q_res is not None else 0
+                  
+                  if q_res is not None:
+                    user_ans_val = str(q_tip).strip().lower()
+                    correct_ans_val = str(q_res).strip().lower()
+                    if user_ans_val and user_ans_val == correct_ans_val:
+                      q_pts_earned = max_q_pts
+                  
+                  st.markdown(f"<p style='font-size: 0.8rem; color: #666; margin: 0 0 2px 10px;'>• <i>{q_text}</i> ➔ <b>{q_tip}</b> (Pkt: {q_pts_earned}/{q_pts_possible})</p>", unsafe_allow_html=True)
+              else:
+                st.markdown("<p style='font-size: 0.8rem; color: #888; font-style: italic; margin-top: 6px;'>Zusatzfragen werden erst nach der Sperre angezeigt.</p>", unsafe_allow_html=True)
 
 elif menu == "Admin-Bereich":
   st.subheader("⚙️ Admin-Verwaltung")
@@ -1151,6 +1169,12 @@ elif menu == "Admin-Bereich":
     with tab7:
       st.write("### Einstellungen & Punkte")
       with st.form("settings_form"):
+        q_locked_current = settings.get("questions_locked", False)
+        new_q_locked = st.checkbox(
+            "🔒 Alle Zusatzfragen für die Tippabgabe sperren",
+            value=q_locked_current
+        )
+
         p_p = st.number_input(
             "Punkte pro richtigem Paarungs-Tipp",
             min_value=1,
@@ -1191,6 +1215,7 @@ elif menu == "Admin-Bereich":
 
         submit_settings = st.form_submit_button("Einstellungen speichern")
         if submit_settings:
+          settings["questions_locked"] = new_q_locked
           settings["points_pairing"] = int(p_p)
           settings["question_points"] = new_q_points
           settings["bonus_pairing_round"] = int(b_p)
@@ -1206,7 +1231,7 @@ elif menu == "Admin-Bereich":
       st.write("### ⚠️ Reset / Daten zurücksetzen")
       confirm_reset = st.checkbox(
           "⚠️ Ja, ich bin absolut sicher, dass ich alle Daten (Tipps,"
-          " Paarungen, Fragen, Teilnehmer) auf den Standard zurücksetzen vill."
+          " Paarungen, Fragen, Teilnehmer) auf den Standard zurücksetzen will."
       )
       if st.button("🔄 Alles zurücksetzen", disabled=not confirm_reset):
         for f in [
@@ -1222,6 +1247,7 @@ elif menu == "Admin-Bereich":
         save_data(SCHWINGER_FILE, DEFAULT_SCHWINGER)
         save_data(PARTICIPANTS_FILE, DEFAULT_PARTICIPANTS)
         settings["gang_locked"] = {}
+        settings["questions_locked"] = False
         save_data(SETTINGS_FILE, settings)
         st.success("Alles auf den Standard zurückgesetzt!")
         st.rerun()
