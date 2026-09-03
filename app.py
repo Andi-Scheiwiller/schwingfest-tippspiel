@@ -13,8 +13,8 @@ SETTINGS_FILE = "settings.json"
 PARTICIPANTS_FILE = "participants.json"
 SCHWINGER_FILE = "schwinger.json"
 
-APP_VERSION = "v14"
-APP_BUILD = "03.09.2026 15:48"
+APP_VERSION = "v14.1"
+APP_BUILD = "03.09.2026 15:53"
 
 # --- OFFIZIELLE SCHWINGER-LISTE (Startliste ESV, Stand 30.08.2026) ---
 DEFAULT_SCHWINGER = [
@@ -1489,29 +1489,31 @@ elif menu == "Admin-Bereich":
               "Löschen bestätigen (zugehörige bereits abgegebene Tipps werden ebenfalls entfernt)"
           )
           delete_pairing_clicked = st.form_submit_button(
-              "Ausgewählte Paarung löschen",
-              disabled=not confirm_pairing_delete,
+              "Ausgewählte Paarung löschen"
           )
 
           if delete_pairing_clicked:
-            pairing_id_to_delete = pairing_delete_options[pairing_to_delete_label]
-            pairings = [
-                p for p in pairings if str(p.get("id")) != str(pairing_id_to_delete)
-            ]
-            save_data(PAIRINGS_FILE, pairings)
+            if not confirm_pairing_delete:
+              st.warning("Bitte bestätige zuerst das Löschen.")
+            else:
+              pairing_id_to_delete = pairing_delete_options[pairing_to_delete_label]
+              pairings = [
+                  p for p in pairings if str(p.get("id")) != str(pairing_id_to_delete)
+              ]
+              save_data(PAIRINGS_FILE, pairings)
 
-            # Zugehörige Tipps bei allen Teilnehmern entfernen, damit keine
-            # unsichtbaren Alt-Daten bestehen bleiben.
-            for entry in tips.values():
-              data = entry.get("data", {}) if isinstance(entry, dict) and "data" in entry else entry
-              if isinstance(data, dict):
-                user_pairings = data.get("pairings", {})
-                if isinstance(user_pairings, dict):
-                  user_pairings.pop(str(pairing_id_to_delete), None)
-            save_data(TIPS_FILE, tips)
+              # Zugehörige Tipps bei allen Teilnehmern entfernen, damit keine
+              # unsichtbaren Alt-Daten bestehen bleiben.
+              for entry in tips.values():
+                data = entry.get("data", {}) if isinstance(entry, dict) and "data" in entry else entry
+                if isinstance(data, dict):
+                  user_pairings = data.get("pairings", {})
+                  if isinstance(user_pairings, dict):
+                    user_pairings.pop(str(pairing_id_to_delete), None)
+              save_data(TIPS_FILE, tips)
 
-            st.success("Paarung und zugehörige Tipps wurden gelöscht.")
-            st.rerun()
+              st.success("Paarung und zugehörige Tipps wurden gelöscht.")
+              st.rerun()
 
       st.divider()
       st.write("### 3. Gänge für Tippabgabe sperren (1. bis 6. Gang)")
@@ -1601,33 +1603,35 @@ elif menu == "Admin-Bereich":
               "Löschen bestätigen (zugehörige bereits abgegebene Tipps werden ebenfalls entfernt)"
           )
           delete_question_clicked = st.form_submit_button(
-              "Ausgewählte Zusatzfrage löschen",
-              disabled=not confirm_question_delete,
+              "Ausgewählte Zusatzfrage löschen"
           )
 
           if delete_question_clicked:
-            question_id_to_delete = question_delete_options[question_to_delete_label]
-            questions = [
-                q for q in questions if str(q.get("id")) != str(question_id_to_delete)
-            ]
-            save_data(QUESTIONS_FILE, questions)
+            if not confirm_question_delete:
+              st.warning("Bitte bestätige zuerst das Löschen.")
+            else:
+              question_id_to_delete = question_delete_options[question_to_delete_label]
+              questions = [
+                  q for q in questions if str(q.get("id")) != str(question_id_to_delete)
+              ]
+              save_data(QUESTIONS_FILE, questions)
 
-            # Punktkonfiguration der gelöschten Frage entfernen.
-            if isinstance(settings.get("question_points"), dict):
-              settings["question_points"].pop(str(question_id_to_delete), None)
-              save_data(SETTINGS_FILE, settings)
+              # Punktkonfiguration der gelöschten Frage entfernen.
+              if isinstance(settings.get("question_points"), dict):
+                settings["question_points"].pop(str(question_id_to_delete), None)
+                save_data(SETTINGS_FILE, settings)
 
-            # Zugehörige Tipps bei allen Teilnehmern entfernen.
-            for entry in tips.values():
-              data = entry.get("data", {}) if isinstance(entry, dict) and "data" in entry else entry
-              if isinstance(data, dict):
-                user_questions = data.get("questions", {})
-                if isinstance(user_questions, dict):
-                  user_questions.pop(str(question_id_to_delete), None)
-            save_data(TIPS_FILE, tips)
+              # Zugehörige Tipps bei allen Teilnehmern entfernen.
+              for entry in tips.values():
+                data = entry.get("data", {}) if isinstance(entry, dict) and "data" in entry else entry
+                if isinstance(data, dict):
+                  user_questions = data.get("questions", {})
+                  if isinstance(user_questions, dict):
+                    user_questions.pop(str(question_id_to_delete), None)
+              save_data(TIPS_FILE, tips)
 
-            st.success("Zusatzfrage und zugehörige Tipps wurden gelöscht.")
-            st.rerun()
+              st.success("Zusatzfrage und zugehörige Tipps wurden gelöscht.")
+              st.rerun()
 
       st.divider()
       st.write("### Richtige Antworten für Zusatzfragen eintragen")
