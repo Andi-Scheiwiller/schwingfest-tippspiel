@@ -1,4 +1,6 @@
 import copy
+from collections import Counter
+from datetime import datetime
 import json
 import os
 import re
@@ -224,6 +226,12 @@ DEFAULT_QUESTIONS = [
         "verband": "SWSV",
         "category": "Beste Schwinger",
         "result": None,
+    },    {
+        "id": "q10",
+        "question": "Wie viele Punkte erreicht der Festsieger?",
+        "type": "winner_points",
+        "category": "Tiebreaker",
+        "result": None,
     },
 ]
 
@@ -242,13 +250,14 @@ DEFAULT_SETTINGS = {
         "q7": 2,
         "q8": 2,
         "q9": 2,
+        "q10": 0,
     },
     "bonus_pairing_round": 2,
     "bonus_question_round": 2,
     "gang_locked": {},
     "questions_locked": False,
-    # Version 2 = offizielle Startliste 2026 + verlustfreie Namensmigration.
-    "data_version": 2,
+    # Version 3 = Tiebreaker-Frage; bestehende Spiel-/Admin-Daten bleiben erhalten.
+    "data_version": 3,
 }
 
 
@@ -358,6 +367,42 @@ def get_schlussgang_points(questions, user_questions, q_points_config):
   return points_by_qid
 
 
+def autosave_user_tip(participant_name, section, item_id, widget_key, empty_as_none=False):
+  """Speichert eine einzelne Tipp-Auswahl sofort, ohne andere Tipps zu verändern."""
+  current_tips = load_data(TIPS_FILE, {})
+  entry = current_tips.get(participant_name, {})
+
+  if isinstance(entry, dict) and "data" in entry:
+    data = entry.get("data", {"pairings": {}, "questions": {}})
+  else:
+    # Rückwärtskompatibilität für ältere Datenstruktur
+    data = entry if isinstance(entry, dict) else {"pairings": {}, "questions": {}}
+    entry = {"pin": None, "data": data}
+
+  data.setdefault("pairings", {})
+  data.setdefault("questions", {})
+
+  value = st.session_state.get(widget_key, "-")
+  if empty_as_none and value == "-":
+    value = None
+
+  data.setdefault(section, {})[item_id] = value
+  entry["data"] = data
+  current_tips[participant_name] = entry
+  save_data(TIPS_FILE, current_tips)
+  st.session_state[f"last_saved_{participant_name}"] = datetime.now().strftime("%H:%M:%S")
+
+
+def is_gang_complete(gang_nr):
+  gang_pairings = [p for p in pairings if p.get("gang") == gang_nr]
+  return bool(gang_pairings) and all(p.get("result") is not None for p in gang_pairings)
+
+
+def surname_sort_key(name):
+  # Teilnehmernamen werden wie erfasst behandelt; erstes Wort als Nachname.
+  return str(name).strip().casefold()
+
+
 st.set_page_config(
     page_title="Tippspiel Kilchberger Schwinget",
     page_icon="🇨🇭",
@@ -392,10 +437,19 @@ existing_data_version = settings.get("data_version", 0)
 for key, default_value in DEFAULT_SETTINGS.items():
   if key not in settings:
     settings[key] = copy.deepcopy(default_value)
+# Neue Unterfelder ebenfalls nur ergänzen, nie bestehende Punktwerte überschreiben.
+settings.setdefault("question_points", {})
+settings["question_points"].setdefault("q10", 0)
 
-# Einmalige verlustfreie Migration auf die offizielle Startliste.
-# Die Spiel-/Admin-Daten werden nicht zurückgesetzt; bestehende Schwinger-Tipps
-# werden lediglich auf die aktuelle offizielle Schreibweise (inkl. Sterne) gebracht.
+# Neue Standardfragen verlustfrei ergänzen; vorhandene Fragen/Resultate nie überschreiben.
+existing_question_ids = {q.get("id") for q in questions}
+for default_q in DEFAULT_QUESTIONS:
+  if default_q.get("id") not in existing_question_ids:
+    questions.append(copy.deepcopy(default_q))
+    existing_question_ids.add(default_q.get("id"))
+    save_data(QUESTIONS_FILE, questions)
+
+# Einmalige verlustfreie Migration auf die aktuelle Datenversion.
 if existing_data_version < DEFAULT_SETTINGS["data_version"]:
   pairings, questions, tips = migrate_schwinger_references_to_official(
       pairings, questions, tips
@@ -520,7 +574,24 @@ if menu == "Tippspiel":
         st.write("")
 
         user_data = user_entry.get("data", {"pairings": {}, "questions": {}})
-        
+
+        # Vollständigkeit nur für aktuell tippbare Inhalte.
+        locked_now = settings.get("gang_locked", {})
+        open_pairings = [p for p in pairings if not locked_now.get(str(p.get("gang")), False)]
+        open_questions = [] if settings.get("questions_locked", False) else questions
+        up = user_data.get("pairings", {})
+        uq = user_data.get("questions", {})
+        missing_p = sum(1 for p in open_pairings if up.get(p["id"]) in (None, "-", ""))
+        missing_q = sum(1 for q in open_questions if uq.get(q["id"]) in (None, "-", ""))
+        missing_total = missing_p + missing_q
+        if missing_total == 0:
+          st.success("✅ Alle aktuell verfügbaren Tipps abgegeben.")
+        else:
+          st.warning(f"⚠️ Noch {missing_total} aktuell verfügbare Tipps offen.")
+        last_saved = st.session_state.get(f"last_saved_{clean_name}")
+        if last_saved:
+          st.caption(f"✓ Automatisch gespeichert · {last_saved}")
+
         st.markdown("""
         <style>
         .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
@@ -544,75 +615,71 @@ if menu == "Tippspiel":
             if not available_gangs:
               st.info("Zurzeit sind keine Gänge verfügbar.")
             else:
-              with st.form("tipping_form_pairings"):
-                new_user_pairings = user_data.get("pairings", {})
-                pts_p_val = settings.get("points_pairing", 1)
+              new_user_pairings = user_data.get("pairings", {})
+              pts_p_val = settings.get("points_pairing", 1)
 
-                from itertools import groupby
+              from itertools import groupby
 
-                sorted_pairings = sorted(pairings, key=lambda x: x["gang"])
+              # Aktuellster verfügbarer Gang steht immer oben.
+              sorted_pairings = sorted(pairings, key=lambda x: x["gang"], reverse=True)
 
-                for gang_nr, gang_pairings in groupby(
-                    sorted_pairings, key=lambda x: x["gang"]
-                ):
-                  gang_str = str(gang_nr)
-                  if locked_dict.get(gang_str, False):
-                    continue
+              for gang_nr, gang_pairings in groupby(
+                  sorted_pairings, key=lambda x: x["gang"]
+              ):
+                gang_str = str(gang_nr)
+                if locked_dict.get(gang_str, False):
+                  continue
 
-                  with st.container(border=True):
-                    st.markdown(f"### {gang_nr}. Gang")
+                with st.container(border=True):
+                  st.markdown(f"### {gang_nr}. Gang")
+                  st.write("")
+
+                  for p in gang_pairings:
+                    p_id = p["id"]
+                    s1 = p["schwinget_1"]
+                    s2 = p["schwinget_2"]
+
+                    default_tip = new_user_pairings.get(p_id, "-")
+                    options = ["-", s1, "Gestellt", s2]
+                    default_idx = (
+                        options.index(default_tip)
+                        if default_tip in options
+                        else 0
+                    )
+
+                    achieved_p = 0
+                    possible_p = pts_p_val if p.get("result") else 0
+                    if p.get("result"):
+                      if default_tip != "-" and default_tip == p["result"]:
+                        achieved_p = pts_p_val
+
+                    label = f"{s1}  ⚔️  {s2}"
+                    widget_key = f"tip_{clean_name}_{p_id}"
+
+                    col_l, col_r = st.columns([4, 1.3])
+                    with col_l:
+                      st.markdown(
+                          f"<p style='font-size:1.0rem;font-weight:600;margin-bottom:0px;padding-top:4px;'>{label}</p>",
+                          unsafe_allow_html=True,
+                      )
+                    with col_r:
+                      st.markdown(
+                          f"<p style='font-size:0.95rem;color:#666;text-align:right;margin-bottom:0px;padding-top:8px;'>(Punkte: {achieved_p} / {possible_p})</p>",
+                          unsafe_allow_html=True,
+                      )
+
+                    st.selectbox(
+                        label,
+                        options,
+                        index=default_idx,
+                        key=widget_key,
+                        label_visibility="collapsed",
+                        on_change=autosave_user_tip,
+                        args=(clean_name, "pairings", p_id, widget_key, False),
+                    )
                     st.write("")
 
-                    for p in gang_pairings:
-                      p_id = p["id"]
-                      s1 = p["schwinget_1"]
-                      s2 = p["schwinget_2"]
-
-                      default_tip = new_user_pairings.get(p_id, "-")
-                      options = ["-", s1, "Gestellt", s2]
-                      default_idx = (
-                          options.index(default_tip)
-                          if default_tip in options
-                          else 0
-                      )
-
-                      achieved_p = 0
-                      possible_p = pts_p_val if p.get("result") else 0
-                      if p.get("result"):
-                        if default_tip != "-" and default_tip == p["result"]:
-                          achieved_p = pts_p_val
-
-                      label = f"{s1}  ⚔️  {s2}"
-                      
-                      col_l, col_r = st.columns([4, 1.3])
-                      with col_l:
-                        st.markdown(
-                            f"<p style='font-size:1.0rem;font-weight:600;margin-bottom:0px;padding-top:4px;'>{label}</p>",
-                            unsafe_allow_html=True,
-                        )
-                      with col_r:
-                        st.markdown(
-                            f"<p style='font-size:0.95rem;color:#666;text-align:right;margin-bottom:0px;padding-top:8px;'>(Punkte: {achieved_p} / {possible_p})</p>",
-                            unsafe_allow_html=True,
-                        )
-
-                      tip = st.selectbox(
-                          label,
-                          options,
-                          index=default_idx,
-                          key=f"tip_{p_id}",
-                          label_visibility="collapsed",
-                      )
-                      new_user_pairings[p_id] = tip
-                      st.write("")
-
-                submit_p = st.form_submit_button("Paarung-Tipps speichern")
-                if submit_p:
-                  user_data["pairings"] = new_user_pairings
-                  tips[clean_name]["data"] = user_data
-                  save_data(TIPS_FILE, tips)
-                  st.success("Paarungs-Tipps gespeichert!")
-                  st.rerun()
+              st.caption("✓ Änderungen werden automatisch gespeichert.")
 
         with sub_tab_q:
           st.write("")
@@ -623,108 +690,106 @@ if menu == "Tippspiel":
             if q_is_locked:
               st.info("Zurzeit sind keine Zusatzfragen verfügbar.")
             else:
-              with st.form("tipping_form_questions"):
-                new_user_questions = user_data.get("questions", {})
-                q_points_config = settings.get("question_points", {})
+              new_user_questions = user_data.get("questions", {})
+              q_points_config = settings.get("question_points", {})
 
-                schlussgang_points = get_schlussgang_points(
-                    questions, new_user_questions, q_points_config
-                )
+              schlussgang_points = get_schlussgang_points(
+                  questions, new_user_questions, q_points_config
+              )
 
-                categories = [
-                    "Siege Andy",
-                    "Schlussgangteilnehmer",
-                    "Sieger",
-                    "Beste Schwinger",
+              categories = [
+                  "Siege Andy",
+                  "Schlussgangteilnehmer",
+                  "Sieger",
+                  "Beste Schwinger",
+                  "Tiebreaker",
+              ]
+
+              for cat in categories:
+                cat_questions = [
+                    q
+                    for q in questions
+                    if q.get("category", "Beste Schwinger") == cat
                 ]
+                if cat_questions:
+                  st.markdown(
+                      f"<h4 style='color:#555555;margin-top:18px;margin-bottom:4px;font-weight:600;font-size:1.05rem;'>{cat}</h4>",
+                      unsafe_allow_html=True,
+                  )
+                  st.markdown("<hr style='margin-top:0px;margin-bottom:12px;'>", unsafe_allow_html=True)
 
-                for cat in categories:
-                  cat_questions = [
-                      q
-                      for q in questions
-                      if q.get("category", "Beste Schwinger") == cat
-                  ]
-                  if cat_questions:
-                    st.markdown(
-                        f"<h4 style='color:#555555;margin-top:18px;margin-bottom:4px;font-weight:600;font-size:1.05rem;'>{cat}</h4>",
-                        unsafe_allow_html=True,
-                    )
-                    st.markdown("<hr style='margin-top:0px;margin-bottom:12px;'>", unsafe_allow_html=True)
+                  for q in cat_questions:
+                    q_id = q["id"]
+                    q_text = q["question"]
+                    q_type = q.get("type", "schwinger_all")
+                    q_verband = q.get("verband", None)
+                    default_ans = new_user_questions.get(q_id, "")
 
-                    for q in cat_questions:
-                      q_id = q["id"]
-                      q_text = q["question"]
-                      q_type = q.get("type", "schwinger_all")
-                      q_verband = q.get("verband", None)
-                      default_ans = new_user_questions.get(q_id, "")
-
-                      if q_type == "gang_count":
-                        options = ["-"] + [str(i) for i in range(1, 7)]
-                      elif q_type == "schwinger_verband" and q_verband:
-                        if q_verband == "NOSV":
-                          options = ["-"] + sorted([
-                              s["name"]
-                              for s in schwinger_list
-                              if s["verband"] == q_verband
-                              and not s["name"].startswith("Alpiger Nick")
-                          ])
-                        else:
-                          options = ["-"] + sorted([
-                              s["name"]
-                              for s in schwinger_list
-                              if s["verband"] == q_verband
-                          ])
+                    if q_type == "gang_count":
+                      options = ["-"] + [str(i) for i in range(1, 7)]
+                    elif q_type == "winner_points":
+                      options = ["-"] + [f"{x / 4:.2f}" for x in range(160, 241)]
+                    elif q_type == "schwinger_verband" and q_verband:
+                      if q_verband == "NOSV":
+                        options = ["-"] + sorted([
+                            s["name"]
+                            for s in schwinger_list
+                            if s["verband"] == q_verband
+                            and not s["name"].startswith("Alpiger Nick")
+                        ])
                       else:
-                        options = ["-"] + all_schwinger_names
+                        options = ["-"] + sorted([
+                            s["name"]
+                            for s in schwinger_list
+                            if s["verband"] == q_verband
+                        ])
+                    else:
+                      options = ["-"] + all_schwinger_names
 
-                      default_idx = (
-                          options.index(default_ans)
-                          if default_ans in options
-                          else 0
+                    default_idx = (
+                        options.index(default_ans)
+                        if default_ans in options
+                        else 0
+                    )
+
+                    max_q_pts = q_points_config.get(q_id, 2)
+                    achieved_q_pts = 0
+                    possible_q_pts = max_q_pts if q.get("result") is not None else 0
+
+                    if q.get("result") is not None:
+                      user_ans_val = str(default_ans).strip().lower()
+                      correct_ans_val = str(q.get("result")).strip().lower()
+
+                      if cat == "Schlussgangteilnehmer":
+                        achieved_q_pts = schlussgang_points.get(q_id, 0)
+                      elif user_ans_val and user_ans_val == correct_ans_val:
+                        achieved_q_pts = max_q_pts
+
+                    col_l, col_r = st.columns([4, 1.3])
+                    with col_l:
+                      st.markdown(
+                          f"<p style='font-size:1.0rem;font-weight:600;margin-bottom:0px;padding-top:4px;'>{q_text}</p>",
+                          unsafe_allow_html=True,
+                      )
+                    with col_r:
+                      st.markdown(
+                          f"<p style='font-size:0.95rem;color:#666;text-align:right;margin-bottom:0px;padding-top:8px;'>(Punkte: {achieved_q_pts} / {possible_q_pts})</p>",
+                          unsafe_allow_html=True,
                       )
 
-                      max_q_pts = q_points_config.get(q_id, 2)
-                      achieved_q_pts = 0
-                      possible_q_pts = max_q_pts if q.get("result") is not None else 0
+                    widget_key = f"q_sel_{clean_name}_{q_id}"
+                    st.selectbox(
+                        q_text,
+                        options,
+                        index=default_idx,
+                        key=widget_key,
+                        label_visibility="collapsed",
+                        on_change=autosave_user_tip,
+                        args=(clean_name, "questions", q_id, widget_key, True),
+                    )
+                    st.write("")
 
-                      if q.get("result") is not None:
-                        user_ans_val = str(default_ans).strip().lower()
-                        correct_ans_val = str(q.get("result")).strip().lower()
-
-                        if cat == "Schlussgangteilnehmer":
-                          achieved_q_pts = schlussgang_points.get(q_id, 0)
-                        elif user_ans_val and user_ans_val == correct_ans_val:
-                          achieved_q_pts = max_q_pts
-
-                      col_l, col_r = st.columns([4, 1.3])
-                      with col_l:
-                        st.markdown(
-                            f"<p style='font-size:1.0rem;font-weight:600;margin-bottom:0px;padding-top:4px;'>{q_text}</p>",
-                            unsafe_allow_html=True,
-                        )
-                      with col_r:
-                        st.markdown(
-                            f"<p style='font-size:0.95rem;color:#666;text-align:right;margin-bottom:0px;padding-top:8px;'>(Punkte: {achieved_q_pts} / {possible_q_pts})</p>",
-                            unsafe_allow_html=True,
-                        )
-
-                      ans = st.selectbox(
-                          q_text,
-                          options,
-                          index=default_idx,
-                          key=f"q_sel_{q_id}",
-                          label_visibility="collapsed",
-                      )
-                      new_user_questions[q_id] = None if ans == "-" else ans
-                      st.write("")
-
-                submit_q = st.form_submit_button("Zusatzfragen speichern")
-                if submit_q:
-                  user_data["questions"] = new_user_questions
-                  tips[clean_name]["data"] = user_data
-                  save_data(TIPS_FILE, tips)
-                  st.success("Zusatzfragen gespeichert!")
-                  st.rerun()
+              st.caption("✓ Änderungen werden automatisch gespeichert.")
 
     else:
       st.warning(
@@ -797,12 +862,13 @@ if menu == "Tippspiel":
             "p_points": p_points_total,
             "bonus_p": 0,
             "bonus_q": 0,
+            "gang_wins": [],
             "raw_data": data
         }
 
       existing_gangs = set(p["gang"] for p in pairings)
       for g in existing_gangs:
-        if any(p.get("result") for p in pairings if p["gang"] == g):
+        if is_gang_complete(g):
           max_g_pts = -1
           leaders = []
           for name, stats in user_stats.items():
@@ -815,6 +881,7 @@ if menu == "Tippspiel":
           if max_g_pts > 0:
             for leader in leaders:
               user_stats[leader]["bonus_p"] += bonus_p_val
+              user_stats[leader]["gang_wins"].append(g)
 
       if any(q.get("result") is not None for q in questions) and questions:
         max_q_pts = -1
@@ -830,30 +897,106 @@ if menu == "Tippspiel":
           for leader in q_leaders:
             user_stats[leader]["bonus_q"] += bonus_q_val
 
+      # Tiebreaker gilt bei jeder punktgleichen Rangierung:
+      # Gesamtpunkte -> kleinste Abweichung Siegerpunkte -> Name A-Z.
+      winner_points_q = next((q for q in questions if q.get("type") == "winner_points"), None)
+      actual_winner_points = None
+      if winner_points_q and winner_points_q.get("result") not in (None, "", "-"):
+        try:
+          actual_winner_points = float(winner_points_q.get("result"))
+        except (TypeError, ValueError):
+          actual_winner_points = None
+
       scores = []
       for name, stats in user_stats.items():
-        total = (
-            stats["p_points"]
-            + stats["q_points"]
-            + stats["bonus_p"]
-            + stats["bonus_q"]
-        )
+        total = stats["p_points"] + stats["q_points"] + stats["bonus_p"] + stats["bonus_q"]
+        tb_tip = stats["raw_data"].get("questions", {}).get("q10")
+        try:
+          tb_diff = abs(float(tb_tip) - actual_winner_points) if actual_winner_points is not None and tb_tip not in (None, "", "-") else float("inf")
+        except (TypeError, ValueError):
+          tb_diff = float("inf")
         scores.append({
-            "Name": name,
-            "Total": total,
-            "Gänge": stats["p_points"],
-            "Bonus Gänge": stats["bonus_p"],
-            "Fragen": stats["q_points"],
-            "Bonus Fragen": stats["bonus_q"],
-            "raw_data": stats["raw_data"]
+            "Name": name, "Total": total, "Gänge": stats["p_points"],
+            "Bonus Gänge": stats["bonus_p"], "Fragen": stats["q_points"],
+            "Bonus Fragen": stats["bonus_q"], "GangWins": sorted(stats["gang_wins"]),
+            "TBDiff": tb_diff, "raw_data": stats["raw_data"]
         })
+      scores = sorted(scores, key=lambda x: (-x["Total"], x["TBDiff"], surname_sort_key(x["Name"])))
 
-      scores = sorted(scores, key=lambda x: x["Total"], reverse=True)
+      # Trend: Vergleich mit dem Stand nach dem vorherigen vollständig ausgewerteten Gang.
+      completed_gangs = sorted(g for g in existing_gangs if is_gang_complete(g))
+      trend_map = {e["Name"]: 0 for e in scores}
+      if completed_gangs:
+        latest_g = completed_gangs[-1]
+        previous_gangs = [g for g in completed_gangs if g < latest_g]
+        if previous_gangs:
+          cutoff = previous_gangs[-1]
+          prev_rows = []
+          for name, stats in user_stats.items():
+            prev_p = sum(v for g, v in stats["gang_points_map"].items() if g <= cutoff)
+            prev_bonus = 0
+            for g in completed_gangs:
+              if g <= cutoff and g in stats["gang_wins"]:
+                prev_bonus += bonus_p_val
+            prev_total = prev_p + prev_bonus + stats["q_points"] + stats["bonus_q"]
+            prev_rows.append((name, prev_total))
+          prev_rows.sort(key=lambda x: (-x[1], surname_sort_key(x[0])))
+          prev_rank = {name: i + 1 for i, (name, _) in enumerate(prev_rows)}
+          current_pos = {e["Name"]: i + 1 for i, e in enumerate(scores)}
+          trend_map = {name: prev_rank.get(name, current_pos[name]) - current_pos[name] for name in current_pos}
+
+      # Kompakte Tippstatistik, erst nach Sperrung sichtbar.
+      locked_stats = settings.get("gang_locked", {})
+      if any(locked_stats.get(str(g), False) for g in existing_gangs) or settings.get("questions_locked", False):
+        with st.expander("📊 Tippstatistik"):
+          locked_pairings = [p for p in pairings if locked_stats.get(str(p.get("gang")), False)]
+          for g in sorted({p["gang"] for p in locked_pairings}, reverse=True):
+            st.markdown(f"**{g}. Gang**")
+            for p in [x for x in locked_pairings if x["gang"] == g]:
+              vals = []
+              for e in tips.values():
+                d = e.get("data", {}) if isinstance(e, dict) and "data" in e else e
+                v = d.get("pairings", {}).get(p["id"]) if isinstance(d, dict) else None
+                if v not in (None, "", "-"):
+                  vals.append(v)
+              c = Counter(vals); n = sum(c.values())
+              if n:
+                a = round(100*c.get(p["schwinget_1"],0)/n); d = round(100*c.get("Gestellt",0)/n); b = round(100*c.get(p["schwinget_2"],0)/n)
+                st.caption(f"{p['schwinget_1']}: {a}% · −: {d}% · {p['schwinget_2']}: {b}%")
+          if settings.get("questions_locked", False):
+            st.markdown("**📋 Zusatzfragen**")
+            for q in questions:
+              vals=[]
+              for e in tips.values():
+                d=e.get("data",{}) if isinstance(e,dict) and "data" in e else e
+                v=d.get("questions",{}).get(q["id"]) if isinstance(d,dict) else None
+                if v not in (None,"","-"): vals.append(str(v))
+              c=Counter(vals)
+              if q.get("type") == "gang_count":
+                st.markdown(f"**{q['question']}**")
+                for x in range(1,7):
+                  count=c.get(str(x),0); tipword="Tipp" if count==1 else "Tipps"; winword="Sieg" if x==1 else "Siege"
+                  st.caption(f"{x} {winword}: {count} {tipword}")
+              elif q.get("category") == "Schlussgangteilnehmer" and q.get("id") != "q2":
+                continue
+              elif q.get("category") == "Schlussgangteilnehmer":
+                combined=[]
+                for e in tips.values():
+                  d=e.get("data",{}) if isinstance(e,dict) and "data" in e else e
+                  if isinstance(d,dict):
+                    for qid in ("q2","q3"):
+                      v=d.get("questions",{}).get(qid)
+                      if v not in (None,"","-"): combined.append(str(v))
+                c=Counter(combined)
+                st.markdown("**Schlussgangteilnehmer**")
+                for val,count in c.most_common(5): st.caption(f"{val}: {count} {'Tipp' if count==1 else 'Tipps'}")
+              else:
+                st.markdown(f"**{q['question']}**")
+                for val,count in c.most_common(5): st.caption(f"{val}: {count} {'Tipp' if count==1 else 'Tipps'}")
 
       current_rank = 1
       for i, entry in enumerate(scores):
-        if i > 0 and entry["Total"] < scores[i - 1]["Total"]:
-          current_rank = i + 1
+        current_rank = i + 1
 
         rank_display = (
             "🥇"
@@ -872,9 +1015,11 @@ if menu == "Tippspiel":
                 f"<div style='display: flex; align-items: center; gap: 8px; margin-left: 6px;'>"
                 f"<span style='font-size: 1.1rem; font-weight: bold;'>{rank_display}</span>"
                 f"<span style='font-size: 1.0rem; font-weight: bold;'>{entry['Name']}</span>"
+                f"<span style='font-size:0.8rem;'>{('▲' + str(trend_map.get(entry['Name']))) if trend_map.get(entry['Name'], 0) > 0 else ('▼' + str(abs(trend_map.get(entry['Name'])))) if trend_map.get(entry['Name'], 0) < 0 else '–'}</span>"
                 f"</div>"
                 f"<div style='font-size: 0.75rem; color: gray; margin-top: 2px; margin-left: 34px;'>"
                 f"G: {entry['Gänge']}(+{entry['Bonus Gänge']}B) | F: {entry['Fragen']}(+{entry['Bonus Fragen']}B)"
+                f"{' | ' + ' · '.join('🏆 G' + str(g) for g in entry['GangWins']) if entry['GangWins'] else ''}"
                 f"</div>",
                 unsafe_allow_html=True,
             )
@@ -915,8 +1060,15 @@ if menu == "Tippspiel":
                   if res and tip != "-" and tip == res:
                     p_pts_earned = pts_p
 
-                  match_str = f"{s1} vs {s2}"
-                  st.markdown(f"<p style='font-size: 0.9rem; color: #333; margin: 0 0 2px 10px;'>• {match_str} ➔ <b>{tip}</b> (Pkt: {p_pts_earned}/{p_pts_possible})</p>", unsafe_allow_html=True)
+                  if tip == "Gestellt":
+                    tip_display = f"{s1} <b>−</b> · {s2} <b>−</b>"
+                  elif tip == s1:
+                    tip_display = f"<b>{s1} +</b> · {s2} 0"
+                  elif tip == s2:
+                    tip_display = f"{s1} 0 · <b>{s2} +</b>"
+                  else:
+                    tip_display = f"{s1} · {s2} —"
+                  st.markdown(f"<p style='font-size: 0.9rem; color: #333; margin: 0 0 2px 10px;'>• {tip_display} <span style='color:#777'>({p_pts_earned}/{p_pts_possible})</span></p>", unsafe_allow_html=True)
                 st.write("")
 
             if questions_visible and questions:
@@ -1070,22 +1222,34 @@ elif menu == "Admin-Bereich":
         st.info("Keine Paarungen vorhanden.")
       else:
         with st.form("result_form"):
-          for p in pairings:
-            p_id = p["id"]
-            s1 = p["schwinget_1"]
-            s2 = p["schwinget_2"]
-            p_title = f"{p['gang']}. Gang: {s1}  ⚔️  {s2}"
-            current_res = p.get("result")
-            res_options = ["-", s1, "Gestellt", s2]
-            default_idx = (
-                res_options.index(current_res)
-                if current_res in res_options
-                else 0
-            )
-            selected_res = st.selectbox(
-                p_title, res_options, index=default_idx, key=f"res_{p_id}"
-            )
-            p["result"] = None if selected_res == "-" else selected_res
+          from itertools import groupby
+
+          sorted_result_pairings = sorted(
+              pairings, key=lambda x: x["gang"], reverse=True
+          )
+          for gang_nr, gang_pairings in groupby(
+              sorted_result_pairings, key=lambda x: x["gang"]
+          ):
+            with st.container(border=True):
+              st.markdown(f"### {gang_nr}. Gang")
+              st.write("")
+
+              for p in gang_pairings:
+                p_id = p["id"]
+                s1 = p["schwinget_1"]
+                s2 = p["schwinget_2"]
+                p_title = f"{s1}  ⚔️  {s2}"
+                current_res = p.get("result")
+                res_options = ["-", s1, "Gestellt", s2]
+                default_idx = (
+                    res_options.index(current_res)
+                    if current_res in res_options
+                    else 0
+                )
+                selected_res = st.selectbox(
+                    p_title, res_options, index=default_idx, key=f"res_{p_id}"
+                )
+                p["result"] = None if selected_res == "-" else selected_res
 
           if st.form_submit_button("Resultate speichern"):
             save_data(PAIRINGS_FILE, pairings)
@@ -1121,6 +1285,8 @@ elif menu == "Admin-Bereich":
 
             if q_type == "gang_count":
               options = ["-"] + [str(i) for i in range(1, 7)]
+            elif q_type == "winner_points":
+              options = ["-"] + [f"{x / 4:.2f}" for x in range(160, 241)]
             elif q_type == "schwinger_verband" and q_verband:
               if q_verband == "NOSV":
                 options = ["-"] + sorted([
