@@ -404,7 +404,6 @@ if menu == "Tippspiel":
         # Visuell hervorgehobene Reiter für Gänge/Paarungen und Zusatzfragen
         st.markdown("""
         <style>
-        /* Hervorhebung der Unterreiter (Tabs) */
         .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
             font-size: 1.15rem !important;
             font-weight: 700 !important;
@@ -422,6 +421,7 @@ if menu == "Tippspiel":
             with st.form("tipping_form_pairings"):
               new_user_pairings = user_data.get("pairings", {})
               locked_dict = settings.get("gang_locked", {})
+              pts_p_val = settings.get("points_pairing", 1)
 
               from itertools import groupby
 
@@ -453,13 +453,28 @@ if menu == "Tippspiel":
                         else 0
                     )
 
+                    # Punkte-Berechnung für diese spezifische Paarung
+                    achieved_p = 0
+                    possible_p = pts_p_val if p.get("result") else 0
+                    if p.get("result"):
+                      if default_tip != "-" and default_tip == p["result"]:
+                        achieved_p = pts_p_val
+
                     label = f"{s1}  ⚔️  {s2}"
-                    # Vergrösserte Schrift und deutlicherer Kontrast für Paarungen
-                    st.markdown(
-                        f"<p"
-                        f" style='font-size:1.15rem;font-weight:600;margin-bottom:0px;'>{label}</p>",
-                        unsafe_allow_html=True,
-                    )
+                    
+                    # Layout mit flexibler Ausrichtung für Titel und Punkteanzeige rechts
+                    col_l, col_r = st.columns([4, 1.3])
+                    with col_l:
+                      st.markdown(
+                          f"<p style='font-size:1.15rem;font-weight:600;margin-bottom:0px;padding-top:4px;'>{label}</p>",
+                          unsafe_allow_html=True,
+                      )
+                    with col_r:
+                      st.markdown(
+                          f"<p style='font-size:0.95rem;color:#666;text-align:right;margin-bottom:0px;padding-top:8px;'>(Punkte: {achieved_p} / {possible_p})</p>",
+                          unsafe_allow_html=True,
+                      )
+
                     tip = st.selectbox(
                         label,
                         options,
@@ -486,6 +501,13 @@ if menu == "Tippspiel":
           else:
             with st.form("tipping_form_questions"):
               new_user_questions = user_data.get("questions", {})
+              q_points_config = settings.get("question_points", {})
+
+              # Hilfs-Set für Schlussgangteilnehmer-Auswertung
+              schlussgang_q_ids = [q["id"] for q in questions if q.get("category") == "Schlussgangteilnehmer"]
+              sg_results = [str(q.get("result", "")).strip().lower() for q in questions if q.get("category") == "Schlussgangteilnehmer"]
+              sg_results_clean = [res for res in sg_results if res and res != "-"]
+              schlussgang_evaluated = len(sg_results_clean) >= 2
 
               categories = [
                   "Siege Andy",
@@ -501,10 +523,8 @@ if menu == "Tippspiel":
                     if q.get("category", "Beste Schwinger") == cat
                 ]
                 if cat_questions:
-                  # Dezenter gehaltene Titel für die Zusatzfragen-Kategorien
                   st.markdown(
-                      f"<h4"
-                      f" style='color:#555555;margin-top:18px;margin-bottom:4px;font-weight:600;font-size:1.05rem;'>{cat}</h4>",
+                      f"<h4 style='color:#555555;margin-top:18px;margin-bottom:4px;font-weight:600;font-size:1.05rem;'>{cat}</h4>",
                       unsafe_allow_html=True,
                   )
                   st.markdown("<hr style='margin-top:0px;margin-bottom:12px;'>", unsafe_allow_html=True)
@@ -532,7 +552,7 @@ if menu == "Tippspiel":
                             for s in schwinger_list
                             if s["verband"] == q_verband
                         ])
-                    else:  # schwinger_all
+                    else:
                       options = ["-"] + all_schwinger_names
 
                     default_idx = (
@@ -541,12 +561,35 @@ if menu == "Tippspiel":
                         else 0
                     )
 
-                    # Vergrösserte Schrift für Zusatzfragen
-                    st.markdown(
-                        f"<p"
-                        f" style='font-size:1.15rem;font-weight:600;margin-bottom:0px;'>{q_text}</p>",
-                        unsafe_allow_html=True,
-                    )
+                    # Punkte für diese spezifische Frage berechnen
+                    max_q_pts = q_points_config.get(q_id, 2)
+                    achieved_q_pts = 0
+                    possible_q_pts = max_q_pts if q.get("result") else 0
+
+                    if q.get("result"):
+                      user_ans_val = str(default_ans).strip().lower()
+                      correct_ans_val = str(q.get("result", "")).strip().lower()
+
+                      if cat == "Schlussgangteilnehmer" and schlussgang_evaluated:
+                        if user_ans_val and user_ans_val != "-" and user_ans_val in sg_results_clean:
+                          achieved_q_pts = max_q_pts
+                      else:
+                        if user_ans_val and user_ans_val == correct_ans_val:
+                          achieved_q_pts = max_q_pts
+
+                    # Layout für Frage und Punkteanzeige rechts
+                    col_l, col_r = st.columns([4, 1.3])
+                    with col_l:
+                      st.markdown(
+                          f"<p style='font-size:1.15rem;font-weight:600;margin-bottom:0px;padding-top:4px;'>{q_text}</p>",
+                          unsafe_allow_html=True,
+                      )
+                    with col_r:
+                      st.markdown(
+                          f"<p style='font-size:0.95rem;color:#666;text-align:right;margin-bottom:0px;padding-top:8px;'>(Punkte: {achieved_q_pts} / {possible_q_pts})</p>",
+                          unsafe_allow_html=True,
+                      )
+
                     ans = st.selectbox(
                         q_text,
                         options,
@@ -586,7 +629,6 @@ if menu == "Tippspiel":
       bonus_p_val = settings.get("bonus_pairing_round", 2)
       bonus_q_val = settings.get("bonus_question_round", 2)
 
-      # Definition der Frage-IDs für den Schlussgangteilnehmer (für vertauschbare Auswertung)
       schlussgang_q_ids = [q["id"] for q in questions if q.get("category") == "Schlussgangteilnehmer"]
 
       user_stats = {}
@@ -618,15 +660,8 @@ if menu == "Tippspiel":
           gang_points_map[gang_nr] = g_pts
           p_points_total += g_pts
 
-        # Spezielle Auswertung für Zusatzfragen inkl. vertauschbarer Schlussgangteilnehmer
-        # Wir sammeln zuerst alle echten Resultate und Tipp-Antworten für die Kategorie "Schlussgangteilnehmer"
         sg_results = [str(q.get("result", "")).strip().lower() for q in questions if q.get("category") == "Schlussgangteilnehmer"]
         sg_results_clean = [res for res in sg_results if res and res != "-"]
-
-        sg_tips_map = {q_id: str(user_q_tips.get(q_id, "")).strip().lower() for q_id in schlussgang_q_ids}
-        sg_tips_clean = [val for val in sg_tips_map.values() if val and val != "-"]
-
-        # Prüfen ob beide Schlussgang-Resultate komplett eingetragen sind
         schlussgang_evaluated = len(sg_results_clean) >= 2
 
         for q in questions:
@@ -636,10 +671,7 @@ if menu == "Tippspiel":
             correct_ans = str(q.get("result", "")).strip().lower()
             
             if q.get("category") == "Schlussgangteilnehmer" and schlussgang_evaluated:
-              # Wenn beide getippten Schwinger in den offiziellen Schlussgang-Resultaten vorkommen, gib Punkte!
               if user_ans and user_ans != "-" and user_ans in sg_results_clean:
-                # Um sicherzustellen, dass ein Schwinger bei doppelten Tipps nicht doppelt zählt, prüfen wir das Set
-                # (bei 2 verschiedenen Schlussgangteilnehmern passt das exakt)
                 q_points_val += q_points_config.get(q_id, 2)
             else:
               if user_ans and user_ans == correct_ans:
@@ -763,7 +795,6 @@ elif menu == "Admin-Bereich":
         "Einstellungen & Punkte",
     ])
 
-    # --- REGISTER 1: SCHWINGER-VERWALTUNG ---
     with tab1:
       st.write("### 🤼 Offizielle Schwinger-Liste verwalten")
       st.write(
@@ -998,7 +1029,6 @@ elif menu == "Admin-Bereich":
         st.write(
             f"**Aktuelle Teilnehmer ({len(participants_list)}):**"
         )
-        # Nach jedem Namen eine neue Zeile beginnen
         for p_name in sorted(participants_list):
           st.write(f"- {p_name}")
 
@@ -1107,7 +1137,7 @@ elif menu == "Admin-Bereich":
       st.write("### ⚠️ Reset / Daten zurücksetzen")
       confirm_reset = st.checkbox(
           "⚠️ Ja, ich bin absolut sicher, dass ich alle Daten (Tipps,"
-          " Paarungen, Fragen, Teilnehmer) auf den Standard zurücksetzen will."
+          " Paarungen, Fragen, Teilnehmer) auf den Standard zurücksetzen vill."
       )
       if st.button("🔄 Alles zurücksetzen", disabled=not confirm_reset):
         for f in [
