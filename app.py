@@ -13,8 +13,8 @@ SETTINGS_FILE = "settings.json"
 PARTICIPANTS_FILE = "participants.json"
 SCHWINGER_FILE = "schwinger.json"
 
-APP_VERSION = "v12"
-APP_BUILD = "03.09.2026 12:12"
+APP_VERSION = "v12.1"
+APP_BUILD = "03.09.2026 12:14"
 
 # --- OFFIZIELLE SCHWINGER-LISTE (Startliste ESV, Stand 30.08.2026) ---
 DEFAULT_SCHWINGER = [
@@ -465,6 +465,7 @@ st.markdown("""
   column-gap:10px;
   align-items:center;
   margin-top:4px;
+  margin-bottom:8px;
 }
 .rank-meta-content {
   font-size:.76rem;
