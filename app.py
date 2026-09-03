@@ -728,7 +728,7 @@ if menu == "Tippspiel":
                     if q_type == "gang_count":
                       options = ["-"] + [str(i) for i in range(1, 7)]
                     elif q_type == "winner_points":
-                      options = ["-"] + [f"{x / 4:.2f}" for x in range(160, 241)]
+                      options = ["-"] + [f"{x / 4:.2f}" for x in range(228, 241)]
                     elif q_type == "schwinger_verband" and q_verband:
                       if q_verband == "NOSV":
                         options = ["-"] + sorted([
@@ -846,6 +846,9 @@ if menu == "Tippspiel":
         )
 
         for q in questions:
+          # Der Tiebreaker ist keine Zusatzfrage und gibt keine Fragepunkte.
+          if q.get("type") == "winner_points":
+            continue
           q_id = q["id"]
           if q.get("result") is not None:
             user_ans = str(user_q_tips.get(q_id, "")).strip().lower()
@@ -863,6 +866,7 @@ if menu == "Tippspiel":
             "bonus_p": 0,
             "bonus_q": 0,
             "gang_wins": [],
+            "question_win": False,
             "raw_data": data
         }
 
@@ -883,7 +887,13 @@ if menu == "Tippspiel":
               user_stats[leader]["bonus_p"] += bonus_p_val
               user_stats[leader]["gang_wins"].append(g)
 
-      if any(q.get("result") is not None for q in questions) and questions:
+      # Zusatzfragen-Bonus/Ribbon erst, wenn ALLE normalen Zusatzfragen
+      # ausgewertet sind. Der Tiebreaker (winner_points) zählt ausdrücklich nicht dazu.
+      normal_questions = [q for q in questions if q.get("type") != "winner_points"]
+      normal_questions_complete = bool(normal_questions) and all(
+          q.get("result") is not None for q in normal_questions
+      )
+      if normal_questions_complete:
         max_q_pts = -1
         q_leaders = []
         for name, stats in user_stats.items():
@@ -896,6 +906,7 @@ if menu == "Tippspiel":
         if max_q_pts > 0:
           for leader in q_leaders:
             user_stats[leader]["bonus_q"] += bonus_q_val
+            user_stats[leader]["question_win"] = True
 
       # Tiebreaker gilt bei jeder punktgleichen Rangierung:
       # Gesamtpunkte -> kleinste Abweichung Siegerpunkte -> Name A-Z.
@@ -919,6 +930,7 @@ if menu == "Tippspiel":
             "Name": name, "Total": total, "Gänge": stats["p_points"],
             "Bonus Gänge": stats["bonus_p"], "Fragen": stats["q_points"],
             "Bonus Fragen": stats["bonus_q"], "GangWins": sorted(stats["gang_wins"]),
+            "QuestionWin": stats["question_win"],
             "TBDiff": tb_diff, "raw_data": stats["raw_data"]
         })
       scores = sorted(scores, key=lambda x: (-x["Total"], x["TBDiff"], surname_sort_key(x["Name"])))
@@ -966,6 +978,8 @@ if menu == "Tippspiel":
           if settings.get("questions_locked", False):
             st.markdown("**📋 Zusatzfragen**")
             for q in questions:
+              if q.get("type") == "winner_points":
+                continue
               vals=[]
               for e in tips.values():
                 d=e.get("data",{}) if isinstance(e,dict) and "data" in e else e
@@ -994,6 +1008,20 @@ if menu == "Tippspiel":
                 st.markdown(f"**{q['question']}**")
                 for val,count in c.most_common(5): st.caption(f"{val}: {count} {'Tipp' if count==1 else 'Tipps'}")
 
+            # Tiebreaker separat von den Zusatzfragen ausweisen.
+            tb_q = next((q for q in questions if q.get("type") == "winner_points"), None)
+            if tb_q:
+              tb_vals = []
+              for e in tips.values():
+                d = e.get("data", {}) if isinstance(e, dict) and "data" in e else e
+                v = d.get("questions", {}).get(tb_q["id"]) if isinstance(d, dict) else None
+                if v not in (None, "", "-"):
+                  tb_vals.append(str(v))
+              tb_counts = Counter(tb_vals)
+              st.markdown("**🎯 Tiebreaker – Punkte Festsieger**")
+              for val, count in tb_counts.most_common(5):
+                st.caption(f"{val} Punkte: {count} {'Tipp' if count == 1 else 'Tipps'}")
+
       current_rank = 1
       for i, entry in enumerate(scores):
         current_rank = i + 1
@@ -1020,6 +1048,7 @@ if menu == "Tippspiel":
                 f"<div style='font-size: 0.75rem; color: gray; margin-top: 2px; margin-left: 34px;'>"
                 f"G: {entry['Gänge']}(+{entry['Bonus Gänge']}B) | F: {entry['Fragen']}(+{entry['Bonus Fragen']}B)"
                 f"{' | ' + ' · '.join('🏆 G' + str(g) for g in entry['GangWins']) if entry['GangWins'] else ''}"
+                f"{' · 🏆 F' if entry.get('QuestionWin') and entry['GangWins'] else (' | 🏆 F' if entry.get('QuestionWin') else '')}"
                 f"</div>",
                 unsafe_allow_html=True,
             )
@@ -1286,7 +1315,7 @@ elif menu == "Admin-Bereich":
             if q_type == "gang_count":
               options = ["-"] + [str(i) for i in range(1, 7)]
             elif q_type == "winner_points":
-              options = ["-"] + [f"{x / 4:.2f}" for x in range(160, 241)]
+              options = ["-"] + [f"{x / 4:.2f}" for x in range(228, 241)]
             elif q_type == "schwinger_verband" and q_verband:
               if q_verband == "NOSV":
                 options = ["-"] + sorted([
