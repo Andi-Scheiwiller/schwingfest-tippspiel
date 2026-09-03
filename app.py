@@ -13,8 +13,8 @@ SETTINGS_FILE = "settings.json"
 PARTICIPANTS_FILE = "participants.json"
 SCHWINGER_FILE = "schwinger.json"
 
-APP_VERSION = "v11"
-APP_BUILD = "03.09.2026 12:07"
+APP_VERSION = "v12"
+APP_BUILD = "03.09.2026 12:12"
 
 # --- OFFIZIELLE SCHWINGER-LISTE (Startliste ESV, Stand 30.08.2026) ---
 DEFAULT_SCHWINGER = [
@@ -429,6 +429,76 @@ st.markdown("""
 @media (max-width:600px) {
   .app-logo-only { margin-bottom:5px; }
   .app-logo-only img { width:min(260px, 72vw); }
+}
+
+/* Rangliste: feste Rangspalte, sauber ausgerichtete Namen und kompakte Auszeichnungen */
+.rank-title-grid {
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr) auto;
+  column-gap:10px;
+  align-items:center;
+  margin-left:0;
+}
+.rank-title-grid .rpos {
+  width:42px;
+  text-align:right;
+  justify-self:end;
+  font-size:1.10rem;
+  font-weight:700;
+  line-height:1.15;
+  white-space:nowrap;
+}
+.rank-title-grid .rname {
+  justify-self:start;
+  font-size:1.02rem;
+  font-weight:700;
+  line-height:1.20;
+}
+.rank-title-grid .rtrend {
+  font-size:.82rem;
+  font-weight:600;
+  white-space:nowrap;
+}
+.rank-meta-grid {
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr);
+  column-gap:10px;
+  align-items:center;
+  margin-top:4px;
+}
+.rank-meta-content {
+  font-size:.76rem;
+  color:#777;
+  line-height:1.25;
+}
+.rank-ribbon {
+  font-size:.94rem;
+  line-height:1;
+  vertical-align:-0.04em;
+}
+
+@media (max-width:600px) {
+  .rank-title-grid,
+  .rank-meta-grid {
+    grid-template-columns:36px minmax(0,1fr) auto;
+    column-gap:8px;
+  }
+  .rank-meta-grid {
+    grid-template-columns:36px minmax(0,1fr);
+  }
+  .rank-title-grid .rpos {
+    width:36px;
+    font-size:1.04rem;
+  }
+  .rank-title-grid .rname {
+    font-size:.98rem;
+  }
+  .rank-meta-content {
+    font-size:.74rem;
+  }
+  .rank-ribbon {
+    font-size:.92rem;
+  }
 }
 </style>
 <div class="app-logo-only">
@@ -1149,10 +1219,13 @@ if menu == "Tippspiel":
                 f"<span class='rname'>{entry['Name']}</span>"
                 f"<span class='rtrend'>{('▲' + str(trend_map.get(entry['Name']))) if trend_map.get(entry['Name'], 0) > 0 else ('▼' + str(abs(trend_map.get(entry['Name'])))) if trend_map.get(entry['Name'], 0) < 0 else ''}</span>"
                 f"</div>"
-                f"<div style='font-size: 0.75rem; color: gray; margin-top: 2px; margin-left: 48px;'>"
+                f"<div class='rank-meta-grid'>"
+                f"<span></span>"
+                f"<div class='rank-meta-content'>"
                 f"G: {entry['Gänge']}(+{entry['Bonus Gänge']}B) | F: {entry['Fragen']}(+{entry['Bonus Fragen']}B)"
-                f"{' | ' + ' · '.join('🏆 G' + str(g) for g in entry['GangWins']) if entry['GangWins'] else ''}"
-                f"{' · 🏆 F' if entry.get('QuestionWin') and entry['GangWins'] else (' | 🏆 F' if entry.get('QuestionWin') else '')}"
+                f"{' | ' + ' · '.join('<span class=&quot;rank-ribbon&quot;>🏆</span> G' + str(g) for g in entry['GangWins']) if entry['GangWins'] else ''}"
+                f"{' · <span class=&quot;rank-ribbon&quot;>🏆</span> F' if entry.get('QuestionWin') and entry['GangWins'] else (' | <span class=&quot;rank-ribbon&quot;>🏆</span> F' if entry.get('QuestionWin') else '')}"
+                f"</div>"
                 f"</div>",
                 unsafe_allow_html=True,
             )
