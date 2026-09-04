@@ -13,8 +13,8 @@ SETTINGS_FILE = "settings.json"
 PARTICIPANTS_FILE = "participants.json"
 SCHWINGER_FILE = "schwinger.json"
 
-APP_VERSION = "v15"
-APP_BUILD = "04.09.2026 10:06"
+APP_VERSION = "v15.1"
+APP_BUILD = "04.09.2026 10:44"
 
 
 def get_secret(name, default=""):
@@ -602,6 +602,17 @@ st.markdown("""
 # Resultate, Sperren und Einstellungen bei einem normalen Code-Update erhalten.
 pairings = load_data(PAIRINGS_FILE, copy.deepcopy(DEFAULT_PAIRINGS))
 questions = load_data(QUESTIONS_FILE, copy.deepcopy(DEFAULT_QUESTIONS))
+
+# Sicherheits-Fallback für den Anlass:
+# Nur wenn die gesamte Liste leer ist, den bekannten Ausgangszustand wiederherstellen.
+# Vorhandene Paarungen/Fragen werden niemals überschrieben oder ergänzt.
+if not pairings:
+  pairings = copy.deepcopy(DEFAULT_PAIRINGS)
+  save_data(PAIRINGS_FILE, pairings)
+
+if not questions:
+  questions = copy.deepcopy(DEFAULT_QUESTIONS)
+  save_data(QUESTIONS_FILE, questions)
 
 participants_list = load_data(PARTICIPANTS_FILE, copy.deepcopy(DEFAULT_PARTICIPANTS))
 tips = load_data(TIPS_FILE, {})
