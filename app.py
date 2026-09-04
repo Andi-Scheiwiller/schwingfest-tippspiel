@@ -13,8 +13,17 @@ SETTINGS_FILE = "settings.json"
 PARTICIPANTS_FILE = "participants.json"
 SCHWINGER_FILE = "schwinger.json"
 
-APP_VERSION = "v14.1"
-APP_BUILD = "03.09.2026 15:53"
+APP_VERSION = "v15"
+APP_BUILD = "04.09.2026 10:06"
+
+
+def get_secret(name, default=""):
+  """Secret sicher lesen, auch wenn lokal noch keine secrets.toml vorhanden ist."""
+  try:
+    return st.secrets.get(name, default)
+  except Exception:
+    return default
+
 
 # --- OFFIZIELLE SCHWINGER-LISTE (Startliste ESV, Stand 30.08.2026) ---
 DEFAULT_SCHWINGER = [
@@ -241,7 +250,7 @@ DEFAULT_QUESTIONS = [
 DEFAULT_PARTICIPANTS = []
 
 DEFAULT_SETTINGS = {
-    "admin_pw": "schwingen2026",
+    "admin_pw": get_secret("admin_pw", ""),
     "points_pairing": 1,
     "question_points": {
         "q1": 2,
@@ -1375,9 +1384,20 @@ if menu == "Tippspiel":
 elif menu == "Admin-Bereich":
   st.subheader("⚙️ Admin-Verwaltung")
   admin_pw = st.text_input("Admin-Passwort:", type="password")
+  configured_admin_pw = settings.get("admin_pw") or get_secret("admin_pw", "")
+  if not configured_admin_pw:
+    st.warning(
+        "Kein Admin-Passwort konfiguriert. Bitte in Streamlit Secrets "
+        "den Wert admin_pw setzen."
+    )
 
-  if admin_pw == settings.get("admin_pw", "schwingen2026"):
+
+  if admin_pw and admin_pw == configured_admin_pw:
     st.success("Admin-Zugriff aktiv.")
+    github_url = get_secret("github_url", "")
+    if github_url:
+      st.link_button("🔧 Quellcode / GitHub öffnen", github_url)
+
 
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "Schwinger-Liste",
