@@ -4,6 +4,8 @@ from datetime import datetime
 import json
 import os
 import re
+import requests
+from urllib.parse import quote
 import streamlit as st
 
 PAIRINGS_FILE = "pairings.json"
@@ -13,8 +15,8 @@ SETTINGS_FILE = "settings.json"
 PARTICIPANTS_FILE = "participants.json"
 SCHWINGER_FILE = "schwinger.json"
 
-APP_VERSION = "v15.1"
-APP_BUILD = "04.09.2026 10:44"
+APP_VERSION = "v16"
+APP_BUILD = "05.09.2026 10:48"
 
 
 def get_secret(name, default=""):
@@ -273,19 +275,189 @@ DEFAULT_SETTINGS = {
 }
 
 
-def load_data(file_path, default):
+def _supabase_configured():
+  return bool(get_secret("supabase_url", "") and get_secret("supabase_service_key", ""))
+
+
+def _supabase_headers(prefer=None):
+  key = get_secret("supabase_service_key", "")
+  headers = {
+      "apikey": key,
+      "Authorization": f"Bearer {key}",
+      "Content-Type": "application/json",
+  }
+  if prefer:
+    headers["Prefer"] = prefer
+  return headers
+
+
+def _supabase_endpoint(table):
+  return f"{get_secret('supabase_url', '').rstrip('/')}/rest/v1/{table}"
+
+
+def _local_load(file_path, default):
   if os.path.exists(file_path):
-    with open(file_path, "r", encoding="utf-8") as f:
-      try:
+    try:
+      with open(file_path, "r", encoding="utf-8") as f:
         return json.load(f)
-      except:
-        return default
-  return default
+    except Exception:
+      pass
+  return copy.deepcopy(default)
+
+
+def _local_save(file_path, data):
+  with open(file_path, "w", encoding="utf-8") as f:
+    json.dump(data, f, ensure_ascii=False, indent=4)
+
+
+def _save_tip_entry(participant_name, entry):
+  """Speichert genau einen Teilnehmer atomar in der persistenten Datenbank."""
+  if _supabase_configured():
+    r = requests.post(
+        _supabase_endpoint("tips"),
+        headers=_supabase_headers("resolution=merge-duplicates,return=minimal"),
+        params={"on_conflict": "participant"},
+        json={"participant": participant_name, "payload": entry},
+        timeout=10,
+    )
+    r.raise_for_status()
+
+
+def _delete_tip_entry(participant_name):
+  if _supabase_configured():
+    r = requests.delete(
+        _supabase_endpoint("tips"),
+        headers=_supabase_headers(),
+        params={"participant": f"eq.{participant_name}"},
+        timeout=10,
+    )
+    r.raise_for_status()
+
+
+def _clear_all_tips():
+  if _supabase_configured():
+    # participant=not.is.null trifft alle Zeilen.
+    r = requests.delete(
+        _supabase_endpoint("tips"),
+        headers=_supabase_headers(),
+        params={"participant": "not.is.null"},
+        timeout=10,
+    )
+    r.raise_for_status()
+
+
+def _delete_participant(name):
+  if _supabase_configured():
+    r = requests.delete(
+        _supabase_endpoint("participants"),
+        headers=_supabase_headers(),
+        params={"name": f"eq.{name}"},
+        timeout=10,
+    )
+    r.raise_for_status()
+
+
+def _clear_all_participants():
+  if _supabase_configured():
+    r = requests.delete(
+        _supabase_endpoint("participants"),
+        headers=_supabase_headers(),
+        params={"name": "not.is.null"},
+        timeout=10,
+    )
+    r.raise_for_status()
+
+
+def load_data(file_path, default):
+  """Lädt primär aus Supabase; lokale JSON-Datei ist nur noch Notfall-Fallback."""
+  if not _supabase_configured():
+    return _local_load(file_path, default)
+
+  try:
+    if file_path == TIPS_FILE:
+      r = requests.get(
+          _supabase_endpoint("tips"),
+          headers=_supabase_headers(),
+          params={"select": "participant,payload"},
+          timeout=10,
+      )
+      r.raise_for_status()
+      return {row["participant"]: row["payload"] for row in r.json()}
+
+    if file_path == PARTICIPANTS_FILE:
+      r = requests.get(
+          _supabase_endpoint("participants"),
+          headers=_supabase_headers(),
+          params={"select": "name", "order": "name.asc"},
+          timeout=10,
+      )
+      r.raise_for_status()
+      return [row["name"] for row in r.json()]
+
+    r = requests.get(
+        _supabase_endpoint("app_state"),
+        headers=_supabase_headers(),
+        params={"select": "data", "key": f"eq.{file_path}", "limit": "1"},
+        timeout=10,
+    )
+    r.raise_for_status()
+    rows = r.json()
+    if rows:
+      return rows[0]["data"]
+
+    # Beim ersten Start den bekannten Ausgangszustand dauerhaft initialisieren.
+    initial = copy.deepcopy(default)
+    requests.post(
+        _supabase_endpoint("app_state"),
+        headers=_supabase_headers("resolution=merge-duplicates,return=minimal"),
+        params={"on_conflict": "key"},
+        json={"key": file_path, "data": initial},
+        timeout=10,
+    ).raise_for_status()
+    return initial
+
+  except Exception as exc:
+    # Für den Anlass lieber weiterlaufen als hart abbrechen.
+    st.session_state["_storage_warning"] = str(exc)
+    return _local_load(file_path, default)
 
 
 def save_data(file_path, data):
-  with open(file_path, "w", encoding="utf-8") as f:
-    json.dump(data, f, ensure_ascii=False, indent=4)
+  """Persistiert in Supabase und zusätzlich lokal als kurzfristige Notfallkopie."""
+  _local_save(file_path, data)
+
+  if not _supabase_configured():
+    return
+
+  try:
+    if file_path == TIPS_FILE:
+      # Normalerweise werden Tipps über _save_tip_entry einzeln gespeichert.
+      # Für seltene Admin-/Migrationsvorgänge alle vorhandenen Einträge upserten.
+      for participant_name, entry in data.items():
+        _save_tip_entry(participant_name, entry)
+      return
+
+    if file_path == PARTICIPANTS_FILE:
+      for name in data:
+        requests.post(
+            _supabase_endpoint("participants"),
+            headers=_supabase_headers("resolution=merge-duplicates,return=minimal"),
+            params={"on_conflict": "name"},
+            json={"name": name},
+            timeout=10,
+        ).raise_for_status()
+      return
+
+    requests.post(
+        _supabase_endpoint("app_state"),
+        headers=_supabase_headers("resolution=merge-duplicates,return=minimal"),
+        params={"on_conflict": "key"},
+        json={"key": file_path, "data": data},
+        timeout=10,
+    ).raise_for_status()
+
+  except Exception as exc:
+    st.session_state["_storage_warning"] = str(exc)
 
 
 def schwinger_base_name(value):
@@ -401,7 +573,11 @@ def autosave_user_tip(participant_name, section, item_id, widget_key, empty_as_n
   data.setdefault(section, {})[item_id] = value
   entry["data"] = data
   current_tips[participant_name] = entry
-  save_data(TIPS_FILE, current_tips)
+  _local_save(TIPS_FILE, current_tips)
+  try:
+    _save_tip_entry(participant_name, entry)
+  except Exception as exc:
+    st.session_state["_storage_warning"] = str(exc)
   st.session_state[f"last_saved_{participant_name}"] = datetime.now().strftime("%H:%M:%S")
 
 
@@ -731,7 +907,11 @@ if menu == "Tippspiel":
                   )
               )
               tips[clean_name] = {"pin": new_pin_input, "data": existing_data}
-              save_data(TIPS_FILE, tips)
+              _local_save(TIPS_FILE, tips)
+              try:
+                _save_tip_entry(clean_name, tips[clean_name])
+              except Exception as exc:
+                st.session_state["_storage_warning"] = str(exc)
               st.success("PIN erfolgreich gespeichert!")
               st.rerun()
             else:
@@ -1405,6 +1585,11 @@ elif menu == "Admin-Bereich":
 
   if admin_pw and admin_pw == configured_admin_pw:
     st.success("Admin-Zugriff aktiv.")
+    if _supabase_configured():
+      st.caption("💾 Persistente Speicherung: Supabase aktiv")
+    else:
+      st.warning("⚠️ Persistente Speicherung NICHT aktiv – Supabase-Secrets fehlen.")
+
     github_url = get_secret("github_url", "")
     if github_url:
       st.link_button("🔧 Quellcode / GitHub öffnen", github_url)
@@ -1754,7 +1939,16 @@ elif menu == "Admin-Bereich":
                 save_data(PARTICIPANTS_FILE, sorted(participants_list))
                 if selected_to_edit in tips:
                   tips[clean_edited] = tips.pop(selected_to_edit)
-                  save_data(TIPS_FILE, tips)
+                  _local_save(TIPS_FILE, tips)
+                  try:
+                    _save_tip_entry(clean_edited, tips[clean_edited])
+                    _delete_tip_entry(selected_to_edit)
+                  except Exception as exc:
+                    st.session_state["_storage_warning"] = str(exc)
+                try:
+                  _delete_participant(selected_to_edit)
+                except Exception as exc:
+                  st.session_state["_storage_warning"] = str(exc)
                 st.success(
                     f"Teilnehmer von '{selected_to_edit}' zu '{clean_edited}'"
                     " geändert!"
@@ -1769,7 +1963,12 @@ elif menu == "Admin-Bereich":
             # auch der zugehörige Tipp-Datensatz entfernt werden.
             if selected_to_edit in tips:
               del tips[selected_to_edit]
-              save_data(TIPS_FILE, tips)
+              _local_save(TIPS_FILE, tips)
+            try:
+              _delete_tip_entry(selected_to_edit)
+              _delete_participant(selected_to_edit)
+            except Exception as exc:
+              st.session_state["_storage_warning"] = str(exc)
             st.success(f"Teilnehmer '{selected_to_edit}' wurde gelöscht.")
             st.rerun()
 
@@ -1890,8 +2089,13 @@ elif menu == "Admin-Bereich":
           "Zusatzfragen und Einstellungen bleiben bestehen."
       )
       if st.button("🔄 Teilnehmer & Tipps löschen", disabled=not confirm_reset):
-        save_data(TIPS_FILE, {})
-        save_data(PARTICIPANTS_FILE, [])
+        _local_save(TIPS_FILE, {})
+        _local_save(PARTICIPANTS_FILE, [])
+        try:
+          _clear_all_tips()
+          _clear_all_participants()
+        except Exception as exc:
+          st.session_state["_storage_warning"] = str(exc)
         st.success(
             "Alle Teilnehmer und Tipps wurden gelöscht. "
             "Paarungen, Resultate, Zusatzfragen und Einstellungen bleiben bestehen."
